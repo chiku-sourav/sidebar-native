@@ -29,17 +29,28 @@ fn test_config_json_serialization_roundtrip() {
         sidebar_width: 520,
         width_preset: WindowWidthPreset::UltraWide,
         sort_processes_by: ProcessSortBy::Disk,
+        show_top_cpu: true,
+        show_top_ram: true,
+        show_top_disk: false,
+        show_top_network: true,
+        process_limit_per_category: 6,
         ..Default::default()
     };
 
     let json_str = serde_json::to_string_pretty(&cfg).expect("Serialization failed");
     assert!(json_str.contains("UltraWide"));
     assert!(json_str.contains("Disk"));
+    assert!(json_str.contains("show_top_network"));
 
     let deserialized: AppConfig = serde_json::from_str(&json_str).expect("Deserialization failed");
     assert_eq!(deserialized.sidebar_width, 520);
     assert_eq!(deserialized.width_preset, WindowWidthPreset::UltraWide);
     assert_eq!(deserialized.sort_processes_by, ProcessSortBy::Disk);
+    assert!(deserialized.show_top_cpu);
+    assert!(deserialized.show_top_ram);
+    assert!(!deserialized.show_top_disk);
+    assert!(deserialized.show_top_network);
+    assert_eq!(deserialized.process_limit_per_category, 6);
 }
 
 #[test]
@@ -75,6 +86,9 @@ fn test_process_sorting_logic() {
             disk_read_bytes_sec: 1024 * 100,
             disk_write_bytes_sec: 1024 * 50,
             disk_total_bytes_sec: 1024 * 150,
+            tcp_sockets: 24,
+            udp_sockets: 4,
+            active_sockets: 28,
         },
         ProcessInfo {
             name: "code".to_string(),
@@ -84,6 +98,9 @@ fn test_process_sorting_logic() {
             disk_read_bytes_sec: 1024 * 10,
             disk_write_bytes_sec: 1024 * 10,
             disk_total_bytes_sec: 1024 * 20,
+            tcp_sockets: 2,
+            udp_sockets: 0,
+            active_sockets: 2,
         },
         ProcessInfo {
             name: "rustc".to_string(),
@@ -93,21 +110,99 @@ fn test_process_sorting_logic() {
             disk_read_bytes_sec: 1024 * 1024 * 5,
             disk_write_bytes_sec: 1024 * 1024 * 10,
             disk_total_bytes_sec: 1024 * 1024 * 15,
+            tcp_sockets: 0,
+            udp_sockets: 0,
+            active_sockets: 0,
         },
     ];
 
-    // Sort by CPU
+    // 1. Sort by CPU
     procs.sort_by(|a, b| b.cpu_usage.partial_cmp(&a.cpu_usage).unwrap());
     assert_eq!(procs[0].name, "code"); // 28.0%
 
-    // Sort by Memory
+    // 2. Sort by Memory
     procs.sort_by_key(|a| std::cmp::Reverse(a.memory_bytes));
     assert_eq!(procs[0].name, "rustc"); // 1200 MB
 
-    // Sort by Disk I/O
+    // 3. Sort by Disk I/O
     procs.sort_by_key(|a| std::cmp::Reverse(a.disk_total_bytes_sec));
     assert_eq!(procs[0].name, "rustc"); // 15 MB/s
+
+    // 4. Sort by Network Sockets & Activity
+    procs.sort_by(|a, b| {
+        let a_has = a.active_sockets > 0;
+        let b_has = b.active_sockets > 0;
+        b_has
+            .cmp(&a_has)
+            .then_with(|| b.active_sockets.cmp(&a.active_sockets))
+            .then_with(|| b.disk_total_bytes_sec.cmp(&a.disk_total_bytes_sec))
+    });
+    assert_eq!(procs[0].name, "chrome"); // 28 sockets
+    assert_eq!(procs[1].name, "code"); // 2 sockets
+    assert_eq!(procs[2].name, "rustc"); // 0 sockets
 }
+
+#[test]
+fn test_telemetry_snapshot_separate_process_lists() {
+    use sidebar_native::telemetry::TelemetrySnapshot;
+
+    let mut snapshot = TelemetrySnapshot::default();
+    snapshot.top_cpu_processes.push(ProcessInfo {
+        name: "ffmpeg".to_string(),
+        cpu_usage: 85.0,
+        memory_bytes: 500_000_000,
+        formatted_memory: "500 MB".to_string(),
+        disk_read_bytes_sec: 10_000_000,
+        disk_write_bytes_sec: 15_000_000,
+        disk_total_bytes_sec: 25_000_000,
+        tcp_sockets: 0,
+        udp_sockets: 0,
+        active_sockets: 0,
+    });
+    snapshot.top_ram_processes.push(ProcessInfo {
+        name: "vmsrv".to_string(),
+        cpu_usage: 5.0,
+        memory_bytes: 4_000_000_000,
+        formatted_memory: "4.0 GB".to_string(),
+        disk_read_bytes_sec: 1_000,
+        disk_write_bytes_sec: 1_000,
+        disk_total_bytes_sec: 2_000,
+        tcp_sockets: 2,
+        udp_sockets: 1,
+        active_sockets: 3,
+    });
+    snapshot.top_disk_processes.push(ProcessInfo {
+        name: "robocopy".to_string(),
+        cpu_usage: 12.0,
+        memory_bytes: 80_000_000,
+        formatted_memory: "80 MB".to_string(),
+        disk_read_bytes_sec: 100_000_000,
+        disk_write_bytes_sec: 100_000_000,
+        disk_total_bytes_sec: 200_000_000,
+        tcp_sockets: 0,
+        udp_sockets: 0,
+        active_sockets: 0,
+    });
+    snapshot.top_network_processes.push(ProcessInfo {
+        name: "discord".to_string(),
+        cpu_usage: 2.0,
+        memory_bytes: 250_000_000,
+        formatted_memory: "250 MB".to_string(),
+        disk_read_bytes_sec: 50_000,
+        disk_write_bytes_sec: 20_000,
+        disk_total_bytes_sec: 70_000,
+        tcp_sockets: 18,
+        udp_sockets: 6,
+        active_sockets: 24,
+    });
+
+    assert_eq!(snapshot.top_cpu_processes[0].name, "ffmpeg");
+    assert_eq!(snapshot.top_ram_processes[0].name, "vmsrv");
+    assert_eq!(snapshot.top_disk_processes[0].name, "robocopy");
+    assert_eq!(snapshot.top_network_processes[0].name, "discord");
+    assert_eq!(snapshot.top_network_processes[0].active_sockets, 24);
+}
+
 
 #[test]
 fn test_drive_media_types_and_wsl_detection() {

@@ -113,6 +113,12 @@ pub const ID_PROC_SORT_CPU: u32 = 2911;
 pub const ID_PROC_SORT_RAM: u32 = 2912;
 pub const ID_PROC_SORT_DISK: u32 = 2913;
 
+// Process Category Visibility IDs
+pub const ID_TOGGLE_PROC_CPU: u32 = 2921;
+pub const ID_TOGGLE_PROC_RAM: u32 = 2922;
+pub const ID_TOGGLE_PROC_DISK: u32 = 2923;
+pub const ID_TOGGLE_PROC_NETWORK: u32 = 2924;
+
 pub struct SystemTray {
     hwnd: HWND,
     nid: NOTIFYICONDATAW,
@@ -487,21 +493,27 @@ impl SystemTray {
             let _ = AppendMenuW(unit_menu, MF_SEPARATOR, 0, PCWSTR::null());
             let _ = AppendMenuW(
                 unit_menu,
-                check_flag(config.sort_processes_by == ProcessSortBy::Cpu),
-                ID_PROC_SORT_CPU as usize,
-                w!("Process Ranking: CPU Usage"),
+                check_flag(config.show_top_cpu),
+                ID_TOGGLE_PROC_CPU as usize,
+                w!("Process List: CPU Usage"),
             );
             let _ = AppendMenuW(
                 unit_menu,
-                check_flag(config.sort_processes_by == ProcessSortBy::Memory),
-                ID_PROC_SORT_RAM as usize,
-                w!("Process Ranking: RAM Memory"),
+                check_flag(config.show_top_ram),
+                ID_TOGGLE_PROC_RAM as usize,
+                w!("Process List: RAM Memory"),
             );
             let _ = AppendMenuW(
                 unit_menu,
-                check_flag(config.sort_processes_by == ProcessSortBy::Disk),
-                ID_PROC_SORT_DISK as usize,
-                w!("Process Ranking: Disk I/O"),
+                check_flag(config.show_top_disk),
+                ID_TOGGLE_PROC_DISK as usize,
+                w!("Process List: Disk I/O"),
+            );
+            let _ = AppendMenuW(
+                unit_menu,
+                check_flag(config.show_top_network),
+                ID_TOGGLE_PROC_NETWORK as usize,
+                w!("Process List: Network Usage"),
             );
             let _ = AppendMenuW(menu, MF_POPUP, unit_menu.0 as usize, w!("Units & Display"));
 

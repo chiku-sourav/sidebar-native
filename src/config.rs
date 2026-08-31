@@ -120,6 +120,18 @@ pub struct AppConfig {
     pub show_core_loads: bool,
     pub sort_processes_by: ProcessSortBy,
 
+    // Process Category Toggles & Limits
+    #[serde(default = "default_true")]
+    pub show_top_cpu: bool,
+    #[serde(default = "default_true")]
+    pub show_top_ram: bool,
+    #[serde(default = "default_true")]
+    pub show_top_disk: bool,
+    #[serde(default = "default_true")]
+    pub show_top_network: bool,
+    #[serde(default = "default_limit_category")]
+    pub process_limit_per_category: usize,
+
     // Card Visibility Toggles
     pub show_cpu: bool,
     pub show_gpu: bool,
@@ -172,6 +184,12 @@ impl Default for AppConfig {
             use_bytes: true,
             show_core_loads: true,
             sort_processes_by: ProcessSortBy::Cpu,
+
+            show_top_cpu: true,
+            show_top_ram: true,
+            show_top_disk: true,
+            show_top_network: true,
+            process_limit_per_category: 4,
 
             show_cpu: true,
             show_gpu: true,
@@ -228,4 +246,12 @@ impl AppConfig {
 
 fn dirs_config_dir() -> Option<PathBuf> {
     std::env::var_os("APPDATA").map(PathBuf::from)
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_limit_category() -> usize {
+    4
 }

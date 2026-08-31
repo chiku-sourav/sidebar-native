@@ -569,6 +569,34 @@ unsafe extern "system" fn wnd_proc(
                                 );
                                 let _ = InvalidateRect(hwnd, None, false);
                             }
+                            ID_TOGGLE_PROC_CPU => {
+                                let mut cfg = state.config.lock().unwrap();
+                                cfg.show_top_cpu = !cfg.show_top_cpu;
+                                let _ = cfg.save();
+                                drop(cfg);
+                                let _ = InvalidateRect(hwnd, None, false);
+                            }
+                            ID_TOGGLE_PROC_RAM => {
+                                let mut cfg = state.config.lock().unwrap();
+                                cfg.show_top_ram = !cfg.show_top_ram;
+                                let _ = cfg.save();
+                                drop(cfg);
+                                let _ = InvalidateRect(hwnd, None, false);
+                            }
+                            ID_TOGGLE_PROC_DISK => {
+                                let mut cfg = state.config.lock().unwrap();
+                                cfg.show_top_disk = !cfg.show_top_disk;
+                                let _ = cfg.save();
+                                drop(cfg);
+                                let _ = InvalidateRect(hwnd, None, false);
+                            }
+                            ID_TOGGLE_PROC_NETWORK => {
+                                let mut cfg = state.config.lock().unwrap();
+                                cfg.show_top_network = !cfg.show_top_network;
+                                let _ = cfg.save();
+                                drop(cfg);
+                                let _ = InvalidateRect(hwnd, None, false);
+                            }
                             ID_PROC_SORT_CPU => {
                                 let mut cfg = state.config.lock().unwrap();
                                 cfg.sort_processes_by = ProcessSortBy::Cpu;
