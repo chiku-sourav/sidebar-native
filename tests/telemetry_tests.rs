@@ -449,7 +449,7 @@ fn test_sensors_collector_with_battery() {
 
 #[test]
 fn test_process_network_ranking_and_stats() {
-    let net_procs = [
+    let mut net_procs = [
         ProcessInfo {
             name: "idle_server".to_string(),
             tcp_sockets: 5,
