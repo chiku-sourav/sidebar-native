@@ -94,6 +94,7 @@ pub const ID_STARTUP_TOGGLE: u32 = 2701;
 pub const ID_AUTOPAUSE_TOGGLE: u32 = 2702;
 pub const ID_TOPMOST_TOGGLE: u32 = 2703;
 pub const ID_CLICKTHROUGH_TOGGLE: u32 = 2704;
+pub const ID_CAFFEINE_TOGGLE: u32 = 2705;
 
 // Font Size Submenu IDs
 pub const ID_FONT_SMALL: u32 = 2801;
@@ -542,7 +543,12 @@ impl SystemTray {
                 ID_PROC_SORT_NETWORK as usize,
                 w!("Sort by Network Usage"),
             );
-            let _ = AppendMenuW(unit_menu, MF_POPUP, sort_menu.0 as usize, w!("Process Sort Order"));
+            let _ = AppendMenuW(
+                unit_menu,
+                MF_POPUP,
+                sort_menu.0 as usize,
+                w!("Process Sort Order"),
+            );
             let _ = AppendMenuW(menu, MF_POPUP, unit_menu.0 as usize, w!("Units & Display"));
 
             // 8. Card Visibility & Monitors Submenu
@@ -660,6 +666,12 @@ impl SystemTray {
                 check_flag(config.click_through),
                 ID_CLICKTHROUGH_TOGGLE as usize,
                 w!("Click-Through (Transparent)"),
+            );
+            let _ = AppendMenuW(
+                opt_menu,
+                check_flag(config.caffeine_enabled),
+                ID_CAFFEINE_TOGGLE as usize,
+                w!("Caffeine Mode (Prevent Sleep)"),
             );
             let _ = AppendMenuW(menu, MF_POPUP, opt_menu.0 as usize, w!("Window & Behavior"));
 

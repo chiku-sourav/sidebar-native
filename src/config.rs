@@ -154,6 +154,10 @@ pub struct AppConfig {
     pub show_all_gpus: bool,
     pub show_gpu_shared_memory: bool,
     pub show_gpu_temperatures: bool,
+
+    // Power Management
+    #[serde(default)]
+    pub caffeine_enabled: bool,
 }
 
 impl Default for AppConfig {
@@ -210,6 +214,8 @@ impl Default for AppConfig {
             show_all_gpus: true,
             show_gpu_shared_memory: true,
             show_gpu_temperatures: true,
+
+            caffeine_enabled: false,
         }
     }
 }

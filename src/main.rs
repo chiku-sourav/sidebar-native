@@ -24,6 +24,10 @@ use windows::Win32::Foundation::{
 use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWINDOWATTRIBUTE};
 use windows::Win32::Graphics::Gdi::{BeginPaint, EndPaint, InvalidateRect, PAINTSTRUCT};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+use windows::Win32::System::Power::{
+    SetThreadExecutionState, ES_CONTINUOUS, ES_DISPLAY_REQUIRED, ES_SYSTEM_REQUIRED,
+    EXECUTION_STATE,
+};
 use windows::Win32::System::Threading::CreateMutexW;
 use windows::Win32::UI::HiDpi::{
     GetDpiForSystem, GetDpiForWindow, SetProcessDpiAwarenessContext,
@@ -888,6 +892,20 @@ unsafe extern "system" fn wnd_proc(
                                 };
                                 SetWindowLongW(hwnd, GWL_EXSTYLE, new_ex);
                             }
+                            ID_CAFFEINE_TOGGLE => {
+                                let mut cfg = state.config.lock().unwrap();
+                                cfg.caffeine_enabled = !cfg.caffeine_enabled;
+                                let _ = cfg.save();
+                                if cfg.caffeine_enabled {
+                                    log_info!("Caffeine Mode enabled -> preventing system sleep and display off.");
+                                    SetThreadExecutionState(
+                                        ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED,
+                                    );
+                                } else {
+                                    log_info!("Caffeine Mode disabled -> restoring normal power management.");
+                                    SetThreadExecutionState(ES_CONTINUOUS);
+                                }
+                            }
                             ID_TRAY_OPEN_CONFIG => {
                                 log_info!("Tray Menu -> Open Config File selected.");
                                 let cfg_path = AppConfig::config_path();
@@ -1026,6 +1044,14 @@ fn main() {
         let config = AppConfig::load();
         let is_dark = BackdropManager::is_system_dark_mode();
         log_info!("Windows system theme detected: is_dark={}", is_dark);
+
+        // Restore caffeine mode if it was enabled before shutdown
+        if config.caffeine_enabled {
+            log_info!(
+                "Caffeine Mode restored from config -> preventing system sleep and display off."
+            );
+            SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED);
+        }
 
         let init_dpi = GetDpiForSystem();
         log_info!("System DPI detected: {}", init_dpi);
