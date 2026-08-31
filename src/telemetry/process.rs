@@ -305,9 +305,7 @@ impl ProcessCollector {
             let sockets = socket_counts.get(&pid).copied().unwrap_or_default();
             let (rx_sec, tx_sec) = net_rates.get(&pid).copied().unwrap_or((0, 0));
 
-            let entry = aggregated
-                .entry(clean_name)
-                .or_insert_with(AggregatedProcess::default);
+            let entry = aggregated.entry(clean_name).or_default();
 
             entry.cpu_usage += cpu;
             entry.memory_bytes += memory;
