@@ -3,6 +3,7 @@
 pub mod audio;
 pub mod collector;
 pub mod cpu;
+pub mod formatters;
 pub mod gpu;
 pub mod network;
 pub mod power;
@@ -21,6 +22,7 @@ use crate::config::AppConfig;
 pub use audio::{AudioCollector, AudioMetrics};
 pub use collector::TelemetryCollector;
 pub use cpu::CpuMetrics;
+pub use formatters::{format_bytes, format_speed};
 pub use gpu::{GpuInfo, GpuMetrics};
 pub use network::{NetworkAdapterInfo, NetworkMetrics};
 pub use power::BatteryMetrics;
