@@ -29,7 +29,7 @@ pub use power::BatteryMetrics;
 pub use process::{ProcessInfo, ProcessMemoryInfo};
 pub use ram::RamMetrics;
 pub use sensors::{HardwareSensor, SensorsCollector};
-pub use storage::{DriveInfo, StorageMetrics};
+pub use storage::{DriveInfo, StorageCollector, StorageMetrics};
 pub use temperature::{TemperatureMetrics, TemperatureSensor};
 
 #[derive(Debug, Clone, Default)]

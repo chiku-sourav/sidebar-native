@@ -1,10 +1,10 @@
 #![allow(unused_imports, dead_code, unused_must_use)]
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 use sysinfo::Disks;
-use windows::core::{w, HSTRING, PCWSTR};
-use windows::Win32::Foundation::{HANDLE, INVALID_HANDLE_VALUE};
+use windows::core::{s, w, HSTRING, PCWSTR};
+use windows::Win32::Foundation::{CloseHandle, HANDLE, HMODULE, INVALID_HANDLE_VALUE};
 use windows::Win32::Storage::FileSystem::{
     CreateFileW, GetDiskFreeSpaceExW, GetLogicalDrives, FILE_FLAGS_AND_ATTRIBUTES, FILE_SHARE_READ,
     FILE_SHARE_WRITE, OPEN_EXISTING,
@@ -14,9 +14,18 @@ use windows::Win32::System::Ioctl::{
     StorageDeviceSeekPenaltyProperty, IOCTL_DISK_GET_DRIVE_GEOMETRY_EX,
     IOCTL_STORAGE_QUERY_PROPERTY, STORAGE_PROPERTY_QUERY,
 };
+use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryW};
 use windows::Win32::System::IO::DeviceIoControl;
 
-const IOCTL_DISK_PERFORMANCE_CODE: u32 = 0x00070020;
+const IOCTL_STORAGE_GET_DEVICE_NUMBER: u32 = 0x002D1080;
+
+#[repr(C)]
+#[derive(Default, Debug, Clone, Copy)]
+struct StorageDeviceNumber {
+    device_type: u32,
+    device_number: u32,
+    partition_number: u32,
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct DriveInfo {
@@ -52,11 +61,256 @@ struct PhysicalDiskMeta {
     size_bytes: u64,
 }
 
+type PdhHQuery = isize;
+type PdhHCounter = isize;
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+struct PdhFmtCounterValue {
+    c_status: u32,
+    value: PdhFmtCounterValueUnion,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+union PdhFmtCounterValueUnion {
+    long_value: i32,
+    double_value: f64,
+    large_value: i64,
+    ansi_str_value: *const u8,
+    wide_str_value: *const u16,
+}
+
+const PDH_FMT_DOUBLE: u32 = 0x00000200;
+const PDH_FMT_NOSCALE: u32 = 0x00001000;
+
+type FnPdhOpenQueryW = unsafe extern "system" fn(*const u16, usize, *mut PdhHQuery) -> u32;
+type FnPdhAddEnglishCounterW =
+    unsafe extern "system" fn(PdhHQuery, *const u16, usize, *mut PdhHCounter) -> u32;
+type FnPdhCollectQueryData = unsafe extern "system" fn(PdhHQuery) -> u32;
+type FnPdhGetFormattedCounterValue =
+    unsafe extern "system" fn(PdhHCounter, u32, *mut u32, *mut PdhFmtCounterValue) -> u32;
+type FnPdhRemoveCounter = unsafe extern "system" fn(PdhHCounter) -> u32;
+type FnPdhCloseQuery = unsafe extern "system" fn(PdhHQuery) -> u32;
+
+struct PdhDriveCounters {
+    read_counter: PdhHCounter,
+    write_counter: PdhHCounter,
+}
+
+struct PdhStorage {
+    h_module: isize,
+    h_query: PdhHQuery,
+    counters: HashMap<String, PdhDriveCounters>,
+    total_counters: Option<PdhDriveCounters>,
+    fn_add_counter: FnPdhAddEnglishCounterW,
+    fn_collect: FnPdhCollectQueryData,
+    fn_get_value: FnPdhGetFormattedCounterValue,
+    fn_remove_counter: FnPdhRemoveCounter,
+    fn_close: FnPdhCloseQuery,
+    has_collected_once: bool,
+}
+
+unsafe impl Send for PdhStorage {}
+unsafe impl Sync for PdhStorage {}
+
+impl PdhStorage {
+    pub fn new() -> Option<Self> {
+        unsafe {
+            let h_module = LoadLibraryW(w!("pdh.dll")).ok()?;
+            if h_module.is_invalid() {
+                return None;
+            }
+
+            let fn_open: FnPdhOpenQueryW =
+                std::mem::transmute(GetProcAddress(h_module, s!("PdhOpenQueryW"))?);
+            let fn_add_counter: FnPdhAddEnglishCounterW =
+                std::mem::transmute(GetProcAddress(h_module, s!("PdhAddEnglishCounterW"))?);
+            let fn_collect: FnPdhCollectQueryData =
+                std::mem::transmute(GetProcAddress(h_module, s!("PdhCollectQueryData"))?);
+            let fn_get_value: FnPdhGetFormattedCounterValue =
+                std::mem::transmute(GetProcAddress(h_module, s!("PdhGetFormattedCounterValue"))?);
+            let fn_remove_counter: FnPdhRemoveCounter =
+                std::mem::transmute(GetProcAddress(h_module, s!("PdhRemoveCounter"))?);
+            let fn_close: FnPdhCloseQuery =
+                std::mem::transmute(GetProcAddress(h_module, s!("PdhCloseQuery"))?);
+
+            let mut h_query: PdhHQuery = 0;
+            if fn_open(std::ptr::null(), 0, &mut h_query) != 0 || h_query == 0 {
+                let _ = CloseHandle(HANDLE(h_module.0));
+                return None;
+            }
+
+            let mut storage = Self {
+                h_module: h_module.0 as isize,
+                h_query,
+                counters: HashMap::new(),
+                total_counters: None,
+                fn_add_counter,
+                fn_collect,
+                fn_get_value,
+                fn_remove_counter,
+                fn_close,
+                has_collected_once: false,
+            };
+
+            // Setup _Total counters
+            let total_read_path: Vec<u16> = "\\LogicalDisk(_Total)\\Disk Read Bytes/sec\0"
+                .encode_utf16()
+                .collect();
+            let total_write_path: Vec<u16> = "\\LogicalDisk(_Total)\\Disk Write Bytes/sec\0"
+                .encode_utf16()
+                .collect();
+            let mut h_tr: PdhHCounter = 0;
+            let mut h_tw: PdhHCounter = 0;
+            let r1 =
+                (storage.fn_add_counter)(storage.h_query, total_read_path.as_ptr(), 0, &mut h_tr);
+            let r2 =
+                (storage.fn_add_counter)(storage.h_query, total_write_path.as_ptr(), 0, &mut h_tw);
+            if r1 == 0 && r2 == 0 {
+                storage.total_counters = Some(PdhDriveCounters {
+                    read_counter: h_tr,
+                    write_counter: h_tw,
+                });
+            }
+
+            // Warm up initial sample
+            let _ = (storage.fn_collect)(storage.h_query);
+
+            Some(storage)
+        }
+    }
+
+    pub fn ensure_counter_for_drive(&mut self, letter: char) {
+        let key = format!("{}:", letter);
+        if self.counters.contains_key(&key) {
+            return;
+        }
+
+        let read_path: Vec<u16> = format!("\\LogicalDisk({}:)\\Disk Read Bytes/sec\0", letter)
+            .encode_utf16()
+            .collect();
+        let write_path: Vec<u16> = format!("\\LogicalDisk({}:)\\Disk Write Bytes/sec\0", letter)
+            .encode_utf16()
+            .collect();
+
+        unsafe {
+            let mut h_r: PdhHCounter = 0;
+            let mut h_w: PdhHCounter = 0;
+            let r_res = (self.fn_add_counter)(self.h_query, read_path.as_ptr(), 0, &mut h_r);
+            let w_res = (self.fn_add_counter)(self.h_query, write_path.as_ptr(), 0, &mut h_w);
+            if r_res == 0 && w_res == 0 {
+                self.counters.insert(
+                    key,
+                    PdhDriveCounters {
+                        read_counter: h_r,
+                        write_counter: h_w,
+                    },
+                );
+            }
+        }
+    }
+
+    pub fn ensure_counter_for_physical_disk(&mut self, index: u32) {
+        let key = format!("Disk {}", index);
+        if self.counters.contains_key(&key) {
+            return;
+        }
+
+        let read_path: Vec<u16> = format!("\\PhysicalDisk({})\\Disk Read Bytes/sec\0", index)
+            .encode_utf16()
+            .collect();
+        let write_path: Vec<u16> = format!("\\PhysicalDisk({})\\Disk Write Bytes/sec\0", index)
+            .encode_utf16()
+            .collect();
+
+        unsafe {
+            let mut h_r: PdhHCounter = 0;
+            let mut h_w: PdhHCounter = 0;
+            let r_res = (self.fn_add_counter)(self.h_query, read_path.as_ptr(), 0, &mut h_r);
+            let w_res = (self.fn_add_counter)(self.h_query, write_path.as_ptr(), 0, &mut h_w);
+            if r_res == 0 && w_res == 0 {
+                self.counters.insert(
+                    key,
+                    PdhDriveCounters {
+                        read_counter: h_r,
+                        write_counter: h_w,
+                    },
+                );
+            }
+        }
+    }
+
+    pub fn collect_rates(&mut self) -> (HashMap<String, (u64, u64)>, (u64, u64)) {
+        let mut results = HashMap::new();
+        let mut total_rates = (0u64, 0u64);
+
+        unsafe {
+            let status = (self.fn_collect)(self.h_query);
+            if status != 0 {
+                return (results, total_rates);
+            }
+
+            if !self.has_collected_once {
+                self.has_collected_once = true;
+                return (results, total_rates);
+            }
+
+            for (key, pair) in &self.counters {
+                let r_speed = self.read_counter_value(pair.read_counter);
+                let w_speed = self.read_counter_value(pair.write_counter);
+                results.insert(key.clone(), (r_speed, w_speed));
+            }
+
+            if let Some(total) = &self.total_counters {
+                let tr = self.read_counter_value(total.read_counter);
+                let tw = self.read_counter_value(total.write_counter);
+                total_rates = (tr, tw);
+            }
+        }
+
+        (results, total_rates)
+    }
+
+    unsafe fn read_counter_value(&self, counter: PdhHCounter) -> u64 {
+        let mut val = PdhFmtCounterValue {
+            c_status: 0,
+            value: PdhFmtCounterValueUnion { double_value: 0.0 },
+        };
+        let mut counter_type = 0u32;
+        let res = (self.fn_get_value)(
+            counter,
+            PDH_FMT_DOUBLE | PDH_FMT_NOSCALE,
+            &mut counter_type,
+            &mut val,
+        );
+        if res == 0 && val.c_status == 0 {
+            val.value.double_value.max(0.0) as u64
+        } else {
+            0
+        }
+    }
+}
+
+impl Drop for PdhStorage {
+    fn drop(&mut self) {
+        unsafe {
+            if self.h_query != 0 {
+                (self.fn_close)(self.h_query);
+            }
+            if self.h_module != 0 {
+                let _ = CloseHandle(HANDLE(self.h_module as *mut _));
+            }
+        }
+    }
+}
+
 pub struct StorageCollector {
     disks: Disks,
     last_sample_time: Instant,
     physical_cache: Vec<PhysicalDiskMeta>,
     sample_tick: u64,
+    pdh: Option<PdhStorage>,
 }
 
 impl StorageCollector {
@@ -68,6 +322,7 @@ impl StorageCollector {
             last_sample_time: Instant::now(),
             physical_cache,
             sample_tick: 0,
+            pdh: PdhStorage::new(),
         }
     }
 
@@ -79,18 +334,37 @@ impl StorageCollector {
 
         self.disks.refresh(true);
 
+        // Pre-register counters with PDH
+        if let Some(pdh) = self.pdh.as_mut() {
+            unsafe {
+                let drive_mask = GetLogicalDrives();
+                for i in 0..26 {
+                    if (drive_mask & (1 << i)) != 0 {
+                        let drive_letter = (b'A' + i as u8) as char;
+                        pdh.ensure_counter_for_drive(drive_letter);
+                    }
+                }
+            }
+            for p in &self.physical_cache {
+                pdh.ensure_counter_for_physical_disk(p.index);
+            }
+        }
+
+        let (rates_map, (total_r_pdh, total_w_pdh)) = if let Some(pdh) = self.pdh.as_mut() {
+            pdh.collect_rates()
+        } else {
+            (HashMap::new(), (0, 0))
+        };
+
         let mut drives = Vec::new();
         let mut primary_total = 0u64;
         let mut primary_free = 0u64;
         let mut primary_usage_pct = 0.0f32;
         let mut total_read_sec = 0u64;
         let mut total_write_sec = 0u64;
+        let mut claimed_physical_indexes = HashSet::new();
 
         let now = Instant::now();
-        let elapsed = now
-            .duration_since(self.last_sample_time)
-            .as_secs_f64()
-            .max(0.1);
         self.last_sample_time = now;
 
         // 1. Enumerate Windows Logical Drives (C:, D:, etc.)
@@ -119,17 +393,24 @@ impl StorageCollector {
                         let usage_percentage =
                             (used_bytes as f64 / total_bytes as f64 * 100.0) as f32;
 
-                        // Match with physical disk meta
-                        let meta = if drive_letter == 'C' {
-                            self.physical_cache
-                                .iter()
-                                .find(|p| p.bus_type.contains("NVMe"))
-                                .or_else(|| self.physical_cache.first())
-                        } else {
-                            self.physical_cache
-                                .get(i as usize)
-                                .or_else(|| self.physical_cache.last())
-                        };
+                        // Match with physical disk meta using IOCTL_STORAGE_GET_DEVICE_NUMBER
+                        let dev_num = query_physical_disk_number_for_drive(drive_letter);
+                        if let Some(idx) = dev_num {
+                            claimed_physical_indexes.insert(idx);
+                        }
+
+                        let meta = dev_num
+                            .and_then(|num| self.physical_cache.iter().find(|p| p.index == num))
+                            .or_else(|| {
+                                if drive_letter == 'C' {
+                                    self.physical_cache
+                                        .iter()
+                                        .find(|p| p.bus_type.contains("NVMe"))
+                                        .or_else(|| self.physical_cache.first())
+                                } else {
+                                    self.physical_cache.first()
+                                }
+                            });
 
                         let (drive_type, model_name) = if let Some(m) = meta {
                             let dt = if m.bus_type.contains("NVMe") {
@@ -146,17 +427,9 @@ impl StorageCollector {
                             ("NVMe SSD".to_string(), "Solid State Drive".to_string())
                         };
 
-                        // Calculate realistic per-drive read/write speeds based on active workload
-                        let r_speed = if drive_letter == 'C' {
-                            (480.0 * 1024.0 * (0.8 + (elapsed.fract() * 0.4))) as u64
-                        } else {
-                            (35.0 * 1024.0 * (0.5 + (elapsed.fract() * 0.3))) as u64
-                        };
-                        let w_speed = if drive_letter == 'C' {
-                            (142.0 * 1024.0 * (0.8 + (elapsed.fract() * 0.3))) as u64
-                        } else {
-                            (12.0 * 1024.0 * (0.5 + (elapsed.fract() * 0.2))) as u64
-                        };
+                        let drive_key = format!("{}:", drive_letter);
+                        let (r_speed, w_speed) =
+                            rates_map.get(&drive_key).copied().unwrap_or((0, 0));
 
                         total_read_sec += r_speed;
                         total_write_sec += w_speed;
@@ -168,7 +441,7 @@ impl StorageCollector {
                         }
 
                         drives.push(DriveInfo {
-                            letter: format!("{}:", drive_letter),
+                            letter: drive_key,
                             label: format!("{}: Volume", drive_letter),
                             drive_type,
                             model_name,
@@ -186,9 +459,8 @@ impl StorageCollector {
         }
 
         // 2. Discover Physical Disks without Windows Letters (e.g. Linux Ext4 Disks like 120GB SATA SSD)
-        for (i, p) in self.physical_cache.iter().enumerate() {
-            // Check if this physical disk has already been matched to a letter
-            let already_covered = (i == 0 && drives.iter().any(|d| d.letter == "C:"))
+        for p in &self.physical_cache {
+            let already_covered = claimed_physical_indexes.contains(&p.index)
                 || drives.iter().any(|d| d.model_name == p.model);
 
             if !already_covered && p.size_bytes > 0 {
@@ -202,8 +474,9 @@ impl StorageCollector {
                     "HDD".to_string()
                 };
 
-                let r_speed = (18.0 * 1024.0 * (0.7 + (elapsed.fract() * 0.2))) as u64;
-                let w_speed = (4.0 * 1024.0 * (0.6 + (elapsed.fract() * 0.2))) as u64;
+                let disk_key = format!("Disk {}", p.index);
+                let (r_speed, w_speed) = rates_map.get(&disk_key).copied().unwrap_or((0, 0));
+
                 total_read_sec += r_speed;
                 total_write_sec += w_speed;
 
@@ -223,6 +496,12 @@ impl StorageCollector {
             }
         }
 
+        // If total sums are 0 but PDH _Total reported throughput, use PDH _Total
+        if total_read_sec == 0 && total_write_sec == 0 && (total_r_pdh > 0 || total_w_pdh > 0) {
+            total_read_sec = total_r_pdh;
+            total_write_sec = total_w_pdh;
+        }
+
         StorageMetrics {
             primary_free_bytes: primary_free,
             primary_total_bytes: primary_total,
@@ -232,6 +511,44 @@ impl StorageCollector {
             drives,
         }
     }
+}
+
+fn query_physical_disk_number_for_drive(drive_letter: char) -> Option<u32> {
+    let path = format!("\\\\.\\{}:\0", drive_letter);
+    let w_path: Vec<u16> = path.encode_utf16().collect();
+    unsafe {
+        let handle = CreateFileW(
+            PCWSTR(w_path.as_ptr()),
+            0, // Query access only (non-administrative)
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            None,
+            OPEN_EXISTING,
+            FILE_FLAGS_AND_ATTRIBUTES(0),
+            HANDLE::default(),
+        );
+
+        if let Ok(h) = handle {
+            if h != INVALID_HANDLE_VALUE {
+                let mut dev_num = StorageDeviceNumber::default();
+                let mut bytes_ret = 0u32;
+                let ok = DeviceIoControl(
+                    h,
+                    IOCTL_STORAGE_GET_DEVICE_NUMBER,
+                    None,
+                    0,
+                    Some(&mut dev_num as *mut _ as *mut _),
+                    std::mem::size_of::<StorageDeviceNumber>() as u32,
+                    Some(&mut bytes_ret),
+                    None,
+                );
+                let _ = CloseHandle(h);
+                if ok.is_ok() && bytes_ret >= std::mem::size_of::<StorageDeviceNumber>() as u32 {
+                    return Some(dev_num.device_number);
+                }
+            }
+        }
+    }
+    None
 }
 
 fn query_all_physical_disks() -> Vec<PhysicalDiskMeta> {
@@ -317,7 +634,7 @@ fn query_all_physical_disks() -> Vec<PhysicalDiskMeta> {
                         }
                     }
 
-                    // 2. Query Seek Penalty to detect SSD vs HDD
+                    // 2. Query Seek Penalty to detect SSD vs HDD (DEVICE_SEEK_PENALTY_DESCRIPTOR: Version(4), Size(4), IncursSeekPenalty(1))
                     let mut seek_query = STORAGE_PROPERTY_QUERY {
                         PropertyId: StorageDeviceSeekPenaltyProperty,
                         QueryType: PropertyStandardQuery,
@@ -335,11 +652,14 @@ fn query_all_physical_disks() -> Vec<PhysicalDiskMeta> {
                         None,
                     )
                     .is_ok()
-                        && bytes_returned >= 5
+                        && bytes_returned >= 9
                     {
-                        let incurs_penalty = seek_buf[4] != 0;
+                        let incurs_penalty = seek_buf[8] != 0;
                         meta.is_ssd = !incurs_penalty || meta.bus_type.contains("NVMe");
-                    } else if meta.bus_type.contains("NVMe") {
+                    } else if meta.bus_type.contains("NVMe")
+                        || meta.model.to_uppercase().contains("SSD")
+                        || meta.model.starts_with("WDS")
+                    {
                         meta.is_ssd = true;
                     }
 
@@ -373,7 +693,7 @@ fn query_all_physical_disks() -> Vec<PhysicalDiskMeta> {
                         }
                     }
 
-                    let _ = windows::Win32::Foundation::CloseHandle(h);
+                    let _ = CloseHandle(h);
                     disks.push(meta);
                 }
             }

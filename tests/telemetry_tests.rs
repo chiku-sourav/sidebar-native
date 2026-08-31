@@ -576,3 +576,34 @@ fn test_elevation_check() {
         }
     }
 }
+
+#[test]
+fn test_storage_collector_live_query() {
+    use sidevitals::telemetry::StorageCollector;
+
+    let mut collector = StorageCollector::new();
+    let _metrics1 = collector.collect();
+    // Warm-up tick
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    let metrics2 = collector.collect();
+
+    assert!(
+        !metrics2.drives.is_empty(),
+        "Expected at least one storage drive to be detected"
+    );
+    println!("Detected {} drives:", metrics2.drives.len());
+    for d in &metrics2.drives {
+        println!(
+            "Drive: {} | Label: {} | Type: {} | Model: {} | Read: {} B/s | Write: {} B/s | Space: {:.1}/{:.1} GB",
+            d.letter,
+            d.label,
+            d.drive_type,
+            d.model_name,
+            d.read_bytes_sec,
+            d.write_bytes_sec,
+            d.used_bytes as f64 / (1024.0 * 1024.0 * 1024.0),
+            d.total_bytes as f64 / (1024.0 * 1024.0 * 1024.0),
+        );
+        assert!(d.total_bytes > 0, "Drive total bytes should be > 0");
+    }
+}
