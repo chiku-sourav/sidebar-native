@@ -112,6 +112,12 @@ pub struct EtwNetworkCollector {
 }
 
 impl EtwNetworkCollector {
+    pub fn is_active(&self) -> bool {
+        self.is_active
+    }
+}
+
+impl EtwNetworkCollector {
     pub fn new() -> Self {
         let session_name_str = "SidebarNativeNetSession\0";
         let session_name: Vec<u16> = session_name_str.encode_utf16().collect();
@@ -559,6 +565,7 @@ impl super::collector::TelemetryCollector for ProcessCollector {
         snapshot.top_ram_processes = lists.ram;
         snapshot.top_disk_processes = lists.disk;
         snapshot.top_network_processes = lists.network;
+        snapshot.etw_network_active = self.etw.is_active();
 
         snapshot.top_processes = match config.sort_processes_by {
             ProcessSortBy::Cpu => snapshot.top_cpu_processes.clone(),

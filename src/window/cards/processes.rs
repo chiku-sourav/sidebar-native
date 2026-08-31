@@ -74,7 +74,9 @@ impl CardRenderer for ProcessesCard {
             } else {
                 1
             };
-            total_h += 22.0 + (count as f32 * 21.0);
+            // +1 row for the "Run as Admin" hint when ETW is not active
+            let hint_rows = if !snapshot.etw_network_active { 1 } else { 0 };
+            total_h += 22.0 + ((count + hint_rows) as f32 * 21.0);
         }
 
         if active_sections > 1 {
@@ -282,8 +284,9 @@ impl CardRenderer for ProcessesCard {
                     );
                     inside_y += ctx.lh(21);
                 } else {
-                    for proc in active_net {
+                    for proc in &active_net {
                         let net_text = if proc.net_total_bytes_sec > 0 {
+                            // ETW is active and we have real bandwidth data
                             let total_speed = format_speed(proc.net_total_bytes_sec);
                             let rx_speed = format_speed(proc.net_rx_bytes_sec);
                             let tx_speed = format_speed(proc.net_tx_bytes_sec);
@@ -323,6 +326,20 @@ impl CardRenderer for ProcessesCard {
                         );
                         inside_y += ctx.lh(21);
                     }
+                }
+
+                // When ETW did not start (no admin), show a subtle one-line hint
+                // so the user understands why bandwidth figures are absent.
+                if !snapshot.etw_network_active {
+                    SelectObject(hdc, ctx.hfont_caption);
+                    SetTextColor(hdc, ctx.pal.text_muted);
+                    ctx.draw_text(
+                        hdc,
+                        x + 24,
+                        inside_y,
+                        "↑ Run as Admin to see bandwidth per app",
+                    );
+                    inside_y += ctx.lh(21);
                 }
             }
 

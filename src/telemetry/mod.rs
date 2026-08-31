@@ -50,6 +50,10 @@ pub struct TelemetrySnapshot {
     pub machine_name: String,
     pub os_version: String,
 
+    /// True when the ETW kernel-network session started successfully (requires admin).
+    /// When false, per-process bandwidth (net_*_bytes_sec) will always be 0.
+    pub etw_network_active: bool,
+
     // History
     pub cpu_history: Vec<f32>,
     pub ram_history: Vec<f32>,
