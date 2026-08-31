@@ -320,6 +320,15 @@ impl ProcessCollector {
             entry.active_sockets += sockets.total_sockets;
         }
 
+        let num_cores = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(1)
+            .max(1) as f32;
+
+        for entry in aggregated.values_mut() {
+            entry.cpu_usage = (entry.cpu_usage / num_cores).min(100.0);
+        }
+
         let base_list: Vec<(String, AggregatedProcess)> = aggregated.into_iter().collect();
 
         // 1. Top CPU

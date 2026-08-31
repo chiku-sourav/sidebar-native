@@ -148,6 +148,21 @@ fn test_process_sorting_logic() {
 }
 
 #[test]
+fn test_task_manager_cpu_normalization() {
+    let raw_multi_core_cpu = 199.6_f32; // rustc utilizing ~2 full cores
+    let logical_cores = 8.0_f32;
+
+    let normalized_cpu = (raw_multi_core_cpu / logical_cores).min(100.0);
+    assert!((normalized_cpu - 24.95).abs() < 0.01);
+    assert!(normalized_cpu <= 100.0);
+
+    // Extreme case where raw exceeds total CPU capacity
+    let extreme_raw = 1600.0_f32;
+    let clamped_cpu = (extreme_raw / 8.0).min(100.0);
+    assert_eq!(clamped_cpu, 100.0);
+}
+
+#[test]
 fn test_telemetry_snapshot_separate_process_lists() {
     use sidebar_native::telemetry::TelemetrySnapshot;
 

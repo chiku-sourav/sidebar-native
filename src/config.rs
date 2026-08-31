@@ -74,8 +74,9 @@ impl WindowWidthPreset {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum ProcessSortBy {
+    #[default]
     Cpu,
     Memory,
     Disk,
@@ -120,6 +121,7 @@ pub struct AppConfig {
     pub use_ghz: bool,
     pub use_bytes: bool,
     pub show_core_loads: bool,
+    #[serde(default)]
     pub sort_processes_by: ProcessSortBy,
 
     // Process Category Toggles & Limits

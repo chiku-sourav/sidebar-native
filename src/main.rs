@@ -55,8 +55,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use config::{
-    AppConfig, AppTheme, BackdropEffect, DateFormat, FontSize, ProcessSortBy, TemperatureUnit,
-    WindowWidthPreset,
+    AppConfig, AppTheme, BackdropEffect, DateFormat, FontSize, TemperatureUnit, WindowWidthPreset,
 };
 use logger::Logger;
 use telemetry::TelemetryEngine;
@@ -601,34 +600,6 @@ unsafe extern "system" fn wnd_proc(
                             ID_TOGGLE_PROC_NETWORK => {
                                 let mut cfg = state.config.lock().unwrap();
                                 cfg.show_top_network = !cfg.show_top_network;
-                                let _ = cfg.save();
-                                drop(cfg);
-                                let _ = InvalidateRect(hwnd, None, false);
-                            }
-                            ID_PROC_SORT_CPU => {
-                                let mut cfg = state.config.lock().unwrap();
-                                cfg.sort_processes_by = ProcessSortBy::Cpu;
-                                let _ = cfg.save();
-                                drop(cfg);
-                                let _ = InvalidateRect(hwnd, None, false);
-                            }
-                            ID_PROC_SORT_RAM => {
-                                let mut cfg = state.config.lock().unwrap();
-                                cfg.sort_processes_by = ProcessSortBy::Memory;
-                                let _ = cfg.save();
-                                drop(cfg);
-                                let _ = InvalidateRect(hwnd, None, false);
-                            }
-                            ID_PROC_SORT_DISK => {
-                                let mut cfg = state.config.lock().unwrap();
-                                cfg.sort_processes_by = ProcessSortBy::Disk;
-                                let _ = cfg.save();
-                                drop(cfg);
-                                let _ = InvalidateRect(hwnd, None, false);
-                            }
-                            ID_PROC_SORT_NETWORK => {
-                                let mut cfg = state.config.lock().unwrap();
-                                cfg.sort_processes_by = ProcessSortBy::Network;
                                 let _ = cfg.save();
                                 drop(cfg);
                                 let _ = InvalidateRect(hwnd, None, false);
