@@ -226,7 +226,7 @@ impl Default for AppConfig {
 impl AppConfig {
     pub fn config_path() -> PathBuf {
         let mut path = dirs_config_dir().unwrap_or_else(|| PathBuf::from("."));
-        path.push("SidebarNative");
+        path.push("SideVitals");
         let _ = fs::create_dir_all(&path);
         path.push("config.json");
         path

@@ -10,11 +10,11 @@ fn main() {
         // Stamp metadata visible in Windows Explorer -> Properties -> Details
         res.set(
             "FileDescription",
-            "Sidebar Native — Windows 11 Diagnostics Flyout",
+            "SideVitals — Windows 11 Diagnostics Flyout",
         );
-        res.set("ProductName", "Sidebar Native");
-        res.set("OriginalFilename", "sidebar-native.exe");
-        res.set("LegalCopyright", "MIT License");
+        res.set("ProductName", "SideVitals");
+        res.set("OriginalFilename", "sidevitals.exe");
+        res.set("LegalCopyright", "GPL-3.0 License");
 
         // For the windows-gnu toolchain, winres uses `windres` + `gcc`.
         // Neither lives in the standard PATH on a typical Windows machine, so

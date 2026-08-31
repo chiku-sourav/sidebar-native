@@ -148,7 +148,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sidebar-native"
+name = "sidevitals"
 version = "0.1.0"
 dependencies = [
  "serde",

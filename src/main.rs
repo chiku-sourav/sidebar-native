@@ -58,7 +58,7 @@ fn main() {
         let _ = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
         log_info!("Checking single instance named mutex...");
-        let mutex_name = w!("Local\\SidebarDiagnosticsNativeMutex");
+        let mutex_name = w!("Local\\SideVitalsNativeMutex");
         let _h_mutex = CreateMutexW(None, true, mutex_name);
 
         log_info!("Loading application configuration...");
@@ -85,7 +85,7 @@ fn main() {
 
         log_info!("Registering Win32 window class...");
         let h_instance = GetModuleHandleW(None).unwrap_or_default();
-        let class_name = w!("SidebarDiagnosticsFlyoutWindowClass");
+        let class_name = w!("SideVitalsFlyoutWindowClass");
         let app_icon =
             LoadIconW(HINSTANCE(h_instance.0), windows::core::PCWSTR(1 as _)).unwrap_or_default();
 
@@ -170,6 +170,6 @@ fn main() {
 
         log_info!("Win32 message loop exited cleanly. Cleaning up hotkeys and handles.");
         let _ = UnregisterHotKey(hwnd, 1);
-        log_info!("Sidebar Diagnostics Native terminated cleanly.");
+        log_info!("SideVitals terminated cleanly.");
     }
 }

@@ -51,7 +51,7 @@ pub unsafe fn create_flyout_window(
     CreateWindowExW(
         ex_style,
         class_name,
-        w!("Sidebar Diagnostics Flyout"),
+        w!("SideVitals Flyout"),
         WS_POPUP,
         rect.left,
         rect.top,

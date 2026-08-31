@@ -14,15 +14,15 @@ pub struct Logger {
 impl Logger {
     pub fn init() -> std::io::Result<()> {
         let appdata = std::env::var("APPDATA").unwrap_or_else(|_| ".".into());
-        let dir = PathBuf::from(appdata).join("SidebarNative");
+        let dir = PathBuf::from(appdata).join("SideVitals");
         fs::create_dir_all(&dir)?;
 
-        let log_path = dir.join("sidebar.log");
+        let log_path = dir.join("sidevitals.log");
 
         // Rotate if file is larger than 5 MB
         if let Ok(meta) = fs::metadata(&log_path) {
             if meta.len() > 5 * 1024 * 1024 {
-                let backup_path = dir.join("sidebar.old.log");
+                let backup_path = dir.join("sidevitals.old.log");
                 let _ = fs::rename(&log_path, backup_path);
             }
         }
@@ -66,12 +66,12 @@ impl Logger {
         Logger::log(
             "INFO",
             "init",
-            "Sidebar Diagnostics Native (Rust) Initialized",
+            "SideVitals (Rust) Initialized",
         );
         Logger::log(
             "INFO",
             "init",
-            &format!("Log path: {}", dir.join("sidebar.log").display()),
+            &format!("Log path: {}", dir.join("sidevitals.log").display()),
         );
         Logger::log("INFO", "init", "==========================================");
 
@@ -96,8 +96,8 @@ impl Logger {
     pub fn get_log_path() -> PathBuf {
         let appdata = std::env::var("APPDATA").unwrap_or_else(|_| ".".into());
         PathBuf::from(appdata)
-            .join("SidebarNative")
-            .join("sidebar.log")
+            .join("SideVitals")
+            .join("sidevitals.log")
     }
 }
 

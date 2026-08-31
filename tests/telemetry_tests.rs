@@ -1,12 +1,12 @@
-use sidebar_native::config::{
+use sidevitals::config::{
     AppConfig, AppTheme, BackdropEffect, FontSize, ProcessSortBy, TemperatureUnit,
     WindowWidthPreset,
 };
-use sidebar_native::telemetry::process::EtwNetworkCollector;
+use sidevitals::telemetry::process::EtwNetworkCollector;
 
-use sidebar_native::telemetry::network::NetworkAdapterInfo;
-use sidebar_native::telemetry::process::{format_bytes, format_speed, ProcessInfo};
-use sidebar_native::telemetry::storage::DriveInfo;
+use sidevitals::telemetry::network::NetworkAdapterInfo;
+use sidevitals::telemetry::process::{format_bytes, format_speed, ProcessInfo};
+use sidevitals::telemetry::storage::DriveInfo;
 
 #[test]
 fn test_config_defaults_and_presets() {
@@ -164,7 +164,7 @@ fn test_task_manager_cpu_normalization() {
 
 #[test]
 fn test_telemetry_snapshot_separate_process_lists() {
-    use sidebar_native::telemetry::TelemetrySnapshot;
+    use sidevitals::telemetry::TelemetrySnapshot;
 
     let mut snapshot = TelemetrySnapshot::default();
     snapshot.top_cpu_processes.push(ProcessInfo {
@@ -324,7 +324,7 @@ fn test_network_adapters_traffic_ranking() {
 
 #[test]
 fn test_battery_metrics_and_health_calculations() {
-    use sidebar_native::telemetry::power::{BatteryMetrics, SingleBatteryInfo};
+    use sidevitals::telemetry::power::{BatteryMetrics, SingleBatteryInfo};
 
     let design_cap = 50000;
     let full_cap = 45000;
@@ -394,9 +394,9 @@ fn test_battery_metrics_and_health_calculations() {
 
 #[test]
 fn test_sensors_collector_with_battery() {
-    use sidebar_native::telemetry::power::BatteryMetrics;
-    use sidebar_native::telemetry::sensors::SensorsCollector;
-    use sidebar_native::telemetry::TelemetrySnapshot;
+    use sidevitals::telemetry::power::BatteryMetrics;
+    use sidevitals::telemetry::sensors::SensorsCollector;
+    use sidevitals::telemetry::TelemetrySnapshot;
 
     let snapshot = TelemetrySnapshot {
         battery: BatteryMetrics {

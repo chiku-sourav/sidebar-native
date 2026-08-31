@@ -499,8 +499,8 @@ pub unsafe fn handle_tray_menu_action(hwnd: HWND, action: u32, state: &AppState)
             log_info!("Tray Menu -> About Diagnostics selected.");
             MessageBoxW(
                 hwnd,
-                w!("Sidebar Diagnostics Native (Rust)\n\nUltra-low resource Windows 11 Diagnostics Flyout.\nIdle Memory: < 8 MB RAM\nIdle CPU: < 0.1%\n\nFeatures full GPU, CPU, Audio, RAM, Disk, Network, Thermals & Process monitoring with smooth scrolling and high-DPI scaling.\n\nDebug logs: %APPDATA%\\SidebarNative\\sidebar.log"),
-                w!("About Sidebar Diagnostics"),
+                w!("SideVitals (Rust)\n\nUltra-low resource Windows 11 Diagnostics Flyout.\nIdle Memory: < 8 MB RAM\nIdle CPU: < 0.1%\n\nFeatures full GPU, CPU, Audio, RAM, Disk, Network, Thermals & Process monitoring with smooth scrolling and high-DPI scaling.\n\nDebug logs: %APPDATA%\\SideVitals\\sidevitals.log"),
+                w!("About SideVitals"),
                 MB_OK | MB_ICONINFORMATION,
             );
         }

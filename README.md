@@ -156,7 +156,7 @@ SideVitals seamlessly blends into Windows 11 with authentic DWM materials and hi
    ```bash
    cargo build --release
    ```
-   The ultra-compact binary will be generated at `target/release/sidebar-native.exe` (stripped with Link-Time Optimization enabled).
+   The ultra-compact binary will be generated at `target/release/sidevitals.exe` (stripped with Link-Time Optimization enabled).
 
 > **Note**: For per-process network bandwidth tracking, run the application as **Administrator** to allow the ETW kernel-network session to start.
 
@@ -168,7 +168,7 @@ SideVitals seamlessly blends into Windows 11 with authentic DWM materials and hi
 
 | Action | Shortcut / Gesture | Description |
 | :--- | :--- | :--- |
-| **Toggle Flyout** | <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>S</kbd> | Instantly shows or hides the diagnostics sidebar. |
+| **Toggle Flyout** | <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>S</kbd> | Instantly shows or hides the diagnostics flyout. |
 | **System Tray Click** | `Left Click` on Tray Icon | Toggles the flyout visibility. |
 | **Context Menu** | `Right Click` on Tray Icon | Opens the full settings menu. |
 | **Scroll Content** | `Mouse Wheel` | Smoothly scrolls through telemetry cards. |
@@ -195,8 +195,8 @@ Right-clicking the system tray icon opens a rich context menu with the following
 | **Units & Display** | Temperature °C/°F, CPU clock GHz/MHz, network & disk bytes or bits, per-core grid toggle, per-category process visibility, process sort order |
 | **Monitors & Cards** | Individual toggle for every card: CPU, GPU, Audio, RAM, Storage, Network, Processes, Virtual Memory, Battery, System Overview, Sensors Explorer; GPU multi-enum, shared memory breakdown, disabled hardware discovery |
 | **Window & Behavior** | Run at Windows Startup, Auto-Pause on Fullscreen/Games, Always On Top, Click-Through (Transparent Input), Caffeine Mode (Prevent Sleep) |
-| **Open Config File** | Opens `%APPDATA%\SidebarNative\config.json` in your default editor |
-| **Open Debug Log** | Opens `%APPDATA%\SidebarNative\sidebar.log` for diagnostics |
+| **Open Config File** | Opens `%APPDATA%\SideVitals\config.json` in your default editor |
+| **Open Debug Log** | Opens `%APPDATA%\SideVitals\sidevitals.log` for diagnostics |
 | **About / Exit** | About dialog and clean exit |
 
 <br/>
@@ -207,7 +207,7 @@ Right-clicking the system tray icon opens a rich context menu with the following
 
 SideVitals stores its settings in a clean, human-readable JSON configuration file at:
 ```
-%APPDATA%\SidebarNative\config.json
+%APPDATA%\SideVitals\config.json
 ```
 
 You can open and edit this file anytime directly via the Tray Menu (**Right Click Tray** → **Open Config File**). All settings take effect on the next poll cycle without requiring a restart.
@@ -368,9 +368,9 @@ flowchart TB
 * **Open-Closed Principle (OCP)**: Hardware collectors implement the `TelemetryCollector` trait, and UI cards implement the `CardRenderer` trait — new cards and collectors can be added without modifying the core pipeline.
 * **Single Responsibility (SRP)**: Hardware polling runs on a dedicated background thread isolated from the Win32 window message pump.
 * **Thread Safety**: Snapshot synchronization uses an `Arc<RwLock<TelemetrySnapshot>>` with atomic flags for instant, lock-free UI paints.
-* **Single Instance**: Protected by a global named Win32 Mutex (`Local\SidebarDiagnosticsNativeMutex`).
+* **Single Instance**: Protected by a global named Win32 Mutex (`Local\SideVitalsNativeMutex`).
 * **Rolling History**: CPU and RAM utilization are tracked over 30 samples for sparkline trend visualization without heap churn.
-* **Structured Logging**: A built-in file logger writes timestamped `INFO`/`DEBUG`/`WARN`/`ERROR` entries to `%APPDATA%\SidebarNative\sidebar.log` with automatic 5 MB rotation and a panic hook for crash diagnostics.
+* **Structured Logging**: A built-in file logger writes timestamped `INFO`/`DEBUG`/`WARN`/`ERROR` entries to `%APPDATA%\SideVitals\sidevitals.log` with automatic 5 MB rotation and a panic hook for crash diagnostics.
 
 ### Telemetry Collectors
 

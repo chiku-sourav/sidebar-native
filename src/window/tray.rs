@@ -39,7 +39,7 @@ impl SystemTray {
             ..Default::default()
         };
 
-        let tip = "Sidebar Diagnostics (Click to toggle flyout)\0"
+        let tip = "SideVitals (Click to toggle flyout)\0"
             .encode_utf16()
             .collect::<Vec<u16>>();
         let len = tip.len().min(nid.szTip.len());
@@ -72,7 +72,7 @@ impl SystemTray {
         self.last_ram_pct = Some(ram_percentage);
 
         let tip_str = format!(
-            "Sidebar Diagnostics (RAM: {}%) - Click to toggle flyout\0",
+            "SideVitals (RAM: {}%) - Click to toggle flyout\0",
             ram_percentage
         );
         let tip = tip_str.encode_utf16().collect::<Vec<u16>>();
