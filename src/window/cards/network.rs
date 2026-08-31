@@ -25,7 +25,10 @@ impl CardRenderer for NetworkCard {
 
     fn calculate_height(&self, snapshot: &TelemetrySnapshot, config: &AppConfig) -> i32 {
         let scale = config.font_size.scale();
-        let active_adapters: Vec<_> = snapshot.network.adapters.iter()
+        let active_adapters: Vec<_> = snapshot
+            .network
+            .adapters
+            .iter()
             .filter(|a| a.is_up || config.show_disabled_hardware)
             .take(3)
             .collect();
@@ -58,7 +61,10 @@ impl CardRenderer for NetworkCard {
 
             inside_y += ctx.lh(20);
 
-            let adapters: Vec<_> = snapshot.network.adapters.iter()
+            let adapters: Vec<_> = snapshot
+                .network
+                .adapters
+                .iter()
                 .filter(|a| a.is_up || config.show_disabled_hardware)
                 .take(3)
                 .collect();
@@ -70,23 +76,25 @@ impl CardRenderer for NetworkCard {
             } else {
                 for (i, adapter) in adapters.iter().enumerate() {
                     // Line 1: Adapter Name & IP
-                    let dot_col = if adapter.is_up { ctx.pal.accent_green } else { ctx.pal.text_muted };
-                    ctx.draw_colored_dot(hdc, x + 14, inside_y + 4, dot_col);
-
-                    let adapter_name = if adapter.name.len() > 24 {
-                        format!("{}...", &adapter.name[..22])
+                    let dot_col = if adapter.is_up {
+                        ctx.pal.accent_green
                     } else {
-                        adapter.name.clone()
+                        ctx.pal.text_muted
                     };
+                    ctx.draw_colored_dot(hdc, x + 14, inside_y + 4, dot_col);
 
                     ctx.draw_key_value(
                         hdc,
                         x + 24,
                         inside_y,
                         w - 38,
-                        &adapter_name,
+                        &adapter.name,
                         &adapter.ip,
-                        if adapter.is_up { ctx.pal.text_primary } else { ctx.pal.text_muted },
+                        if adapter.is_up {
+                            ctx.pal.text_primary
+                        } else {
+                            ctx.pal.text_muted
+                        },
                         ctx.pal.text_muted,
                     );
 

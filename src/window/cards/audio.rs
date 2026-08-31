@@ -3,7 +3,7 @@ use windows::Win32::Graphics::Gdi::{SelectObject, SetTextColor, HDC};
 use crate::config::AppConfig;
 use crate::telemetry::TelemetrySnapshot;
 use crate::window::cards::CardRenderer;
-use crate::window::context::RenderContext;
+use crate::window::context::{estimate_wrapped_lines, RenderContext};
 
 pub struct AudioCard;
 
@@ -22,9 +22,12 @@ impl CardRenderer for AudioCard {
         config.show_audio
     }
 
-    fn calculate_height(&self, _snapshot: &TelemetrySnapshot, config: &AppConfig) -> i32 {
+    fn calculate_height(&self, snapshot: &TelemetrySnapshot, config: &AppConfig) -> i32 {
         let scale = config.font_size.scale();
-        (104.0 * scale).round() as i32
+        let sidebar_w = config.sidebar_width.max(300);
+        let dev_lines = estimate_wrapped_lines(&snapshot.audio.device_name, sidebar_w - 28, scale);
+        let extra_h = dev_lines.saturating_sub(1) as f32 * 18.0;
+        ((104.0 + extra_h) * scale).round() as i32
     }
 
     fn render(
@@ -49,14 +52,14 @@ impl CardRenderer for AudioCard {
             inside_y += ctx.lh(20);
             SelectObject(hdc, ctx.hfont_label);
             SetTextColor(hdc, ctx.pal.text_primary);
-            let dev_name = if snapshot.audio.device_name.len() > 34 {
-                format!("{}...", &snapshot.audio.device_name[..32])
-            } else {
-                snapshot.audio.device_name.clone()
-            };
-            ctx.draw_text(hdc, x + 14, inside_y, &dev_name);
+            let wrapped_dev =
+                ctx.wrap_text(hdc, ctx.hfont_label, &snapshot.audio.device_name, w - 28);
+            for line in wrapped_dev {
+                ctx.draw_text(hdc, x + 14, inside_y, &line);
+                inside_y += ctx.lh(18);
+            }
 
-            inside_y += ctx.lh(22);
+            inside_y += ctx.lh(4);
             let vol_label = if snapshot.audio.is_muted {
                 "Muted (0%)"
             } else {

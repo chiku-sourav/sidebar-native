@@ -3,7 +3,7 @@ use windows::Win32::Graphics::Gdi::{SelectObject, SetTextColor, HDC};
 use crate::config::{AppConfig, TemperatureUnit};
 use crate::telemetry::TelemetrySnapshot;
 use crate::window::cards::CardRenderer;
-use crate::window::context::RenderContext;
+use crate::window::context::{estimate_wrapped_lines, RenderContext};
 
 pub struct CpuCard;
 
@@ -24,12 +24,13 @@ impl CardRenderer for CpuCard {
 
     fn calculate_height(&self, snapshot: &TelemetrySnapshot, config: &AppConfig) -> i32 {
         let scale = config.font_size.scale();
+        let sidebar_w = config.sidebar_width.max(300);
+        let brand_lines = estimate_wrapped_lines(&snapshot.cpu.brand, sidebar_w - 28, scale);
+        let extra_h = brand_lines.saturating_sub(1) as f32 * 18.0;
+
         let has_core_loads = config.show_core_loads && snapshot.cpu.core_usages.len() > 1;
-        if has_core_loads {
-            (156.0 * scale).round() as i32
-        } else {
-            (132.0 * scale).round() as i32
-        }
+        let base_h = if has_core_loads { 156.0 } else { 132.0 };
+        ((base_h + extra_h) * scale).round() as i32
     }
 
     fn render(
@@ -55,14 +56,13 @@ impl CardRenderer for CpuCard {
             inside_y += ctx.lh(20);
             SelectObject(hdc, ctx.hfont_label);
             SetTextColor(hdc, ctx.pal.text_primary);
-            let cpu_brand = if snapshot.cpu.brand.len() > 34 {
-                format!("{}...", &snapshot.cpu.brand[..32])
-            } else {
-                snapshot.cpu.brand.clone()
-            };
-            ctx.draw_text(hdc, x + 14, inside_y, &cpu_brand);
+            let wrapped_brand = ctx.wrap_text(hdc, ctx.hfont_label, &snapshot.cpu.brand, w - 28);
+            for line in wrapped_brand {
+                ctx.draw_text(hdc, x + 14, inside_y, &line);
+                inside_y += ctx.lh(18);
+            }
 
-            inside_y += ctx.lh(22);
+            inside_y += ctx.lh(4);
             let freq_str = if snapshot.cpu.frequency_mhz > 0 {
                 if config.use_ghz {
                     format!(

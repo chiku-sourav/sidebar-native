@@ -22,7 +22,7 @@ const IOCTL_DISK_PERFORMANCE_CODE: u32 = 0x00070020;
 pub struct DriveInfo {
     pub letter: String,
     pub label: String,
-    pub drive_type: String, // "NVMe SSD" | "SATA SSD" | "HDD" | "WSL2 Linux (ext4)" | "USB Drive"
+    pub drive_type: String, // "NVMe SSD" | "SATA SSD" | "HDD" | "USB Drive"
     pub model_name: String,
     pub read_bytes_sec: u64,
     pub write_bytes_sec: u64,
@@ -211,12 +211,6 @@ impl StorageCollector {
             }
         }
 
-        // 3. Discover WSL2 Linux distributions if present
-        let wsl_drives = discover_wsl_distributions();
-        for wsl in wsl_drives {
-            drives.push(wsl);
-        }
-
         StorageMetrics {
             primary_free_bytes: primary_free,
             primary_total_bytes: primary_total,
@@ -353,47 +347,6 @@ fn query_all_physical_disks() -> Vec<PhysicalDiskMeta> {
     }
 
     disks
-}
-
-fn discover_wsl_distributions() -> Vec<DriveInfo> {
-    let mut wsl_drives = Vec::new();
-
-    // Check standard WSL localhost path e.g. \\wsl.localhost\Ubuntu or \\wsl$\Ubuntu
-    let distros = ["Ubuntu", "Debian", "docker-desktop", "Kali-Linux", "Arch"];
-    for distro in distros {
-        let unc_path = format!("\\\\wsl.localhost\\{}\\", distro);
-        let h_unc = HSTRING::from(&unc_path);
-        let mut free_bytes_avail: u64 = 0;
-        let mut total_bytes: u64 = 0;
-        let mut total_free_bytes: u64 = 0;
-
-        unsafe {
-            if GetDiskFreeSpaceExW(
-                &h_unc,
-                Some(&mut free_bytes_avail),
-                Some(&mut total_bytes),
-                Some(&mut total_free_bytes),
-            ).is_ok() && total_bytes > 0 {
-                let used = total_bytes.saturating_sub(total_free_bytes);
-                let usage_pct = (used as f64 / total_bytes as f64 * 100.0) as f32;
-                wsl_drives.push(DriveInfo {
-                    letter: format!("WSL: {}", distro),
-                    label: format!("WSL2 Linux ({})", distro),
-                    drive_type: "WSL2 Linux (ext4)".to_string(),
-                    model_name: format!("WSL2 {} Virtual Drive (ext4)", distro),
-                    read_bytes_sec: 1024 * 120,
-                    write_bytes_sec: 1024 * 40,
-                    total_bytes,
-                    free_bytes: total_free_bytes,
-                    used_bytes: used,
-                    usage_percentage: usage_pct,
-                    is_linux_or_raw: true,
-                });
-            }
-        }
-    }
-
-    wsl_drives
 }
 
 impl super::collector::TelemetryCollector for StorageCollector {

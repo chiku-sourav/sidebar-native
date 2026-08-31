@@ -4,7 +4,7 @@ use crate::config::AppConfig;
 use crate::telemetry::process::format_speed;
 use crate::telemetry::TelemetrySnapshot;
 use crate::window::cards::CardRenderer;
-use crate::window::context::RenderContext;
+use crate::window::context::{estimate_wrapped_lines, RenderContext};
 
 pub struct StorageCard;
 
@@ -25,9 +25,20 @@ impl CardRenderer for StorageCard {
 
     fn calculate_height(&self, snapshot: &TelemetrySnapshot, config: &AppConfig) -> i32 {
         let scale = config.font_size.scale();
-        let drive_count = snapshot.storage.drives.len().max(1);
-        // Each drive block takes header + space + bar + speeds
-        ((44.0 + (drive_count as f32 * 68.0)) * scale).round() as i32
+        if snapshot.storage.drives.is_empty() {
+            return (64.0 * scale).round() as i32;
+        }
+        let sidebar_w = config.sidebar_width.max(300);
+        let mut total_h = 36.0; // Header + initial padding
+        for (i, drive) in snapshot.storage.drives.iter().enumerate() {
+            let model_lines = estimate_wrapped_lines(&drive.model_name, sidebar_w - 28, scale);
+            let drive_h = 76.0 + (model_lines as f32 * 18.0);
+            total_h += drive_h;
+            if i + 1 < snapshot.storage.drives.len() {
+                total_h += 8.0;
+            }
+        }
+        (total_h * scale).round() as i32
     }
 
     fn render(
@@ -60,28 +71,23 @@ impl CardRenderer for StorageCard {
                     let free_gb = drive.free_bytes as f32 / (1024.0 * 1024.0 * 1024.0);
                     let tot_gb = drive.total_bytes as f32 / (1024.0 * 1024.0 * 1024.0);
 
-                    // Drive Title: Letter & Media Badge (e.g. C: [NVMe SSD] TS1TMTE400S)
-                    let drive_title = format!("{} • [{}]", drive.letter, drive.drive_type);
-                    let model_short = if drive.model_name.len() > 24 {
-                        format!("{}...", &drive.model_name[..22])
-                    } else {
-                        drive.model_name.clone()
-                    };
-
-                    ctx.draw_key_value(
-                        hdc,
-                        x + 14,
-                        inside_y,
-                        w - 28,
-                        &drive_title,
-                        &model_short,
-                        ctx.pal.text_primary,
-                        ctx.pal.text_muted,
-                    );
-
+                    // 1. Drive Title: Letter & Media Badge (e.g. C: • NVMe SSD or Disk 1 • SATA SSD (Linux / Ext4))
+                    let drive_title = format!("{} • {}", drive.letter, drive.drive_type);
+                    SelectObject(hdc, ctx.hfont_label);
+                    SetTextColor(hdc, ctx.pal.text_primary);
+                    ctx.draw_text(hdc, x + 14, inside_y, &drive_title);
                     inside_y += ctx.lh(20);
 
-                    // Capacity & Usage
+                    // 2. Hardware Model Name (Wrapped to next line if big)
+                    SelectObject(hdc, ctx.hfont_caption);
+                    SetTextColor(hdc, ctx.pal.text_muted);
+                    let model_lines = ctx.wrap_text(hdc, ctx.hfont_caption, &drive.model_name, w - 28);
+                    for line in model_lines {
+                        ctx.draw_text(hdc, x + 14, inside_y, &line);
+                        inside_y += ctx.lh(18);
+                    }
+
+                    // 3. Capacity & Usage
                     let space_str = format!("{:.1} GB Free / {:.1} GB ({:.0}%)", free_gb, tot_gb, drive.usage_percentage);
                     ctx.draw_key_value(
                         hdc,
@@ -93,10 +99,9 @@ impl CardRenderer for StorageCard {
                         ctx.pal.text_muted,
                         ctx.pal.text_primary,
                     );
-
                     inside_y += ctx.lh(20);
 
-                    // Progress Bar
+                    // 4. Progress Bar
                     let bar_w = w - 28;
                     let fill_w = ((drive.usage_percentage / 100.0) * bar_w as f32) as i32;
                     let bar_col = if drive.usage_percentage >= 90.0 {
@@ -116,10 +121,9 @@ impl CardRenderer for StorageCard {
                         bar_col,
                         ctx.pal.progress_track,
                     );
-
                     inside_y += ctx.lh(14);
 
-                    // Individual Read and Write Speeds
+                    // 5. Read and Write Speeds
                     let r_str = format_speed(drive.read_bytes_sec);
                     let w_str = format_speed(drive.write_bytes_sec);
                     let speed_line = format!("Read: {} • Write: {}", r_str, w_str);
@@ -134,11 +138,10 @@ impl CardRenderer for StorageCard {
                         ctx.pal.text_muted,
                         ctx.pal.accent_cyan,
                     );
-
                     inside_y += ctx.lh(22);
 
                     if i + 1 < snapshot.storage.drives.len() {
-                        inside_y += ctx.lh(6);
+                        inside_y += ctx.lh(8);
                     }
                 }
             }

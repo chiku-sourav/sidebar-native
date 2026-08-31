@@ -3,7 +3,7 @@ use windows::Win32::Graphics::Gdi::{SelectObject, SetTextColor, HDC};
 use crate::config::{AppConfig, TemperatureUnit};
 use crate::telemetry::TelemetrySnapshot;
 use crate::window::cards::CardRenderer;
-use crate::window::context::RenderContext;
+use crate::window::context::{estimate_wrapped_lines, RenderContext};
 
 pub struct GpuCard;
 
@@ -24,6 +24,7 @@ impl CardRenderer for GpuCard {
 
     fn calculate_height(&self, snapshot: &TelemetrySnapshot, config: &AppConfig) -> i32 {
         let scale = config.font_size.scale();
+        let sidebar_w = config.sidebar_width.max(300);
         let gpus: Vec<_> = if config.show_all_gpus && !snapshot.gpu.gpus.is_empty() {
             snapshot.gpu.gpus.iter().filter(|g| g.is_active || config.show_disabled_hardware).collect()
         } else if !snapshot.gpu.gpus.is_empty() {
@@ -39,11 +40,15 @@ impl CardRenderer for GpuCard {
 
         let mut total_h = 0;
         for (i, gpu) in gpus.iter().enumerate() {
+            let name_lines = estimate_wrapped_lines(&gpu.name, sidebar_w - 28, scale);
+            let extra_name_h = name_lines.saturating_sub(1) as f32 * 18.0;
+
             let card_h = if !gpu.is_active {
-                (95.0 * scale).round() as i32
+                ((95.0 + extra_name_h) * scale).round() as i32
             } else {
                 let has_shared = config.show_gpu_shared_memory && gpu.shared_total_bytes > 0;
-                if has_shared { (178.0 * scale).round() as i32 } else { (132.0 * scale).round() as i32 }
+                let base_h = if has_shared { 178.0 } else { 132.0 };
+                ((base_h + extra_name_h) * scale).round() as i32
             };
             total_h += card_h;
             if i + 1 < gpus.len() {
@@ -65,6 +70,7 @@ impl CardRenderer for GpuCard {
     ) {
         unsafe {
             let scale = config.font_size.scale();
+            let sidebar_w = config.sidebar_width.max(300);
             let gpus_to_show: Vec<_> = if config.show_all_gpus && !snapshot.gpu.gpus.is_empty() {
                 snapshot.gpu.gpus.iter().filter(|g| g.is_active || config.show_disabled_hardware).cloned().collect()
             } else {
@@ -74,8 +80,11 @@ impl CardRenderer for GpuCard {
             let mut cur_y = y;
 
             for gpu in gpus_to_show {
+                let name_lines_est = estimate_wrapped_lines(&gpu.name, sidebar_w - 28, scale);
+                let extra_name_h = name_lines_est.saturating_sub(1) as f32 * 18.0;
+
                 if !gpu.is_active {
-                    let gpu_card_h = (95.0 * scale).round() as i32;
+                    let gpu_card_h = ((95.0 + extra_name_h) * scale).round() as i32;
                     ctx.draw_card(hdc, x, cur_y, w, gpu_card_h, ctx.pal.bg_card, ctx.pal.card_border);
 
                     let mut inside_y = cur_y + ctx.lh(11);
@@ -91,9 +100,13 @@ impl CardRenderer for GpuCard {
                     inside_y += ctx.lh(20);
                     SelectObject(hdc, ctx.hfont_label);
                     SetTextColor(hdc, ctx.pal.text_muted);
-                    ctx.draw_text(hdc, x + 14, inside_y, &gpu.name);
+                    let wrapped_lines = ctx.wrap_text(hdc, ctx.hfont_label, &gpu.name, w - 28);
+                    for line in wrapped_lines {
+                        ctx.draw_text(hdc, x + 14, inside_y, &line);
+                        inside_y += ctx.lh(18);
+                    }
 
-                    inside_y += ctx.lh(22);
+                    inside_y += ctx.lh(4);
                     ctx.draw_key_value(
                         hdc,
                         x + 14,
@@ -110,7 +123,8 @@ impl CardRenderer for GpuCard {
                 }
 
                 let has_shared = config.show_gpu_shared_memory && gpu.shared_total_bytes > 0;
-                let gpu_card_h = if has_shared { (178.0 * scale).round() as i32 } else { (132.0 * scale).round() as i32 };
+                let base_h = if has_shared { 178.0 } else { 132.0 };
+                let gpu_card_h = ((base_h + extra_name_h) * scale).round() as i32;
                 ctx.draw_card(hdc, x, cur_y, w, gpu_card_h, ctx.pal.bg_card, ctx.pal.card_border);
 
                 let mut inside_y = cur_y + ctx.lh(11);
@@ -126,14 +140,13 @@ impl CardRenderer for GpuCard {
                 inside_y += ctx.lh(20);
                 SelectObject(hdc, ctx.hfont_label);
                 SetTextColor(hdc, ctx.pal.text_primary);
-                let gpu_name = if gpu.name.len() > 34 {
-                    format!("{}...", &gpu.name[..32])
-                } else {
-                    gpu.name.clone()
-                };
-                ctx.draw_text(hdc, x + 14, inside_y, &gpu_name);
+                let wrapped_lines = ctx.wrap_text(hdc, ctx.hfont_label, &gpu.name, w - 28);
+                for line in wrapped_lines {
+                    ctx.draw_text(hdc, x + 14, inside_y, &line);
+                    inside_y += ctx.lh(18);
+                }
 
-                inside_y += ctx.lh(22);
+                inside_y += ctx.lh(4);
                 let used_gb = gpu.vram_used_bytes as f32 / (1024.0 * 1024.0 * 1024.0);
                 let total_gb = gpu.vram_total_bytes as f32 / (1024.0 * 1024.0 * 1024.0);
                 ctx.draw_key_value(
