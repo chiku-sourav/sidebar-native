@@ -174,7 +174,7 @@ impl SystemTray {
             self.nid.hIcon = new_icon;
             unsafe {
                 let _ = Shell_NotifyIconW(NIM_MODIFY, &self.nid);
-                if !self.current_icon.is_invalid() && self.current_icon != HICON(0 as *mut _) {
+                if !self.current_icon.is_invalid() && self.current_icon != HICON::default() {
                     let _ = DestroyIcon(self.current_icon);
                 }
             }
@@ -278,7 +278,12 @@ impl SystemTray {
                 ID_FONT_HUGE as usize,
                 w!("Huge (200%)"),
             );
-            let _ = AppendMenuW(menu, MF_POPUP, font_menu.0 as usize, w!("Font Size & Scale"));
+            let _ = AppendMenuW(
+                menu,
+                MF_POPUP,
+                font_menu.0 as usize,
+                w!("Font Size & Scale"),
+            );
 
             // 3. Materials / Backdrop Submenu
             let backdrop_menu = CreatePopupMenu().unwrap_or_default();
@@ -315,85 +320,330 @@ impl SystemTray {
 
             // 4. Window Width & Size Submenu
             let width_menu = CreatePopupMenu().unwrap_or_default();
-            let _ = AppendMenuW(width_menu, check_flag(config.width_preset == WindowWidthPreset::Compact), ID_WIDTH_COMPACT as usize, w!("Compact (350px)"));
-            let _ = AppendMenuW(width_menu, check_flag(config.width_preset == WindowWidthPreset::Standard), ID_WIDTH_STANDARD as usize, w!("Standard (410px)"));
-            let _ = AppendMenuW(width_menu, check_flag(config.width_preset == WindowWidthPreset::Wide), ID_WIDTH_WIDE as usize, w!("Wide (490px - Full Hardware Names)"));
-            let _ = AppendMenuW(width_menu, check_flag(config.width_preset == WindowWidthPreset::UltraWide), ID_WIDTH_ULTRAWIDE as usize, w!("Ultra Wide (580px)"));
-            let _ = AppendMenuW(menu, MF_POPUP, width_menu.0 as usize, w!("Window Width & Size"));
+            let _ = AppendMenuW(
+                width_menu,
+                check_flag(config.width_preset == WindowWidthPreset::Compact),
+                ID_WIDTH_COMPACT as usize,
+                w!("Compact (350px)"),
+            );
+            let _ = AppendMenuW(
+                width_menu,
+                check_flag(config.width_preset == WindowWidthPreset::Standard),
+                ID_WIDTH_STANDARD as usize,
+                w!("Standard (410px)"),
+            );
+            let _ = AppendMenuW(
+                width_menu,
+                check_flag(config.width_preset == WindowWidthPreset::Wide),
+                ID_WIDTH_WIDE as usize,
+                w!("Wide (490px - Full Hardware Names)"),
+            );
+            let _ = AppendMenuW(
+                width_menu,
+                check_flag(config.width_preset == WindowWidthPreset::UltraWide),
+                ID_WIDTH_ULTRAWIDE as usize,
+                w!("Ultra Wide (580px)"),
+            );
+            let _ = AppendMenuW(
+                menu,
+                MF_POPUP,
+                width_menu.0 as usize,
+                w!("Window Width & Size"),
+            );
 
             // 5. Polling Interval Submenu
             let poll_menu = CreatePopupMenu().unwrap_or_default();
-            let _ = AppendMenuW(poll_menu, check_flag(config.poll_interval_ms == 500), ID_POLL_500MS as usize, w!("500 ms (Fast)"));
-            let _ = AppendMenuW(poll_menu, check_flag(config.poll_interval_ms == 1000), ID_POLL_1000MS as usize, w!("1.0 Second (Default)"));
-            let _ = AppendMenuW(poll_menu, check_flag(config.poll_interval_ms == 2000), ID_POLL_2000MS as usize, w!("2.0 Seconds"));
-            let _ = AppendMenuW(poll_menu, check_flag(config.poll_interval_ms == 3000), ID_POLL_3000MS as usize, w!("3.0 Seconds"));
-            let _ = AppendMenuW(poll_menu, check_flag(config.poll_interval_ms == 5000), ID_POLL_5000MS as usize, w!("5.0 Seconds (Low Power)"));
+            let _ = AppendMenuW(
+                poll_menu,
+                check_flag(config.poll_interval_ms == 500),
+                ID_POLL_500MS as usize,
+                w!("500 ms (Fast)"),
+            );
+            let _ = AppendMenuW(
+                poll_menu,
+                check_flag(config.poll_interval_ms == 1000),
+                ID_POLL_1000MS as usize,
+                w!("1.0 Second (Default)"),
+            );
+            let _ = AppendMenuW(
+                poll_menu,
+                check_flag(config.poll_interval_ms == 2000),
+                ID_POLL_2000MS as usize,
+                w!("2.0 Seconds"),
+            );
+            let _ = AppendMenuW(
+                poll_menu,
+                check_flag(config.poll_interval_ms == 3000),
+                ID_POLL_3000MS as usize,
+                w!("3.0 Seconds"),
+            );
+            let _ = AppendMenuW(
+                poll_menu,
+                check_flag(config.poll_interval_ms == 5000),
+                ID_POLL_5000MS as usize,
+                w!("5.0 Seconds (Low Power)"),
+            );
             let _ = AppendMenuW(menu, MF_POPUP, poll_menu.0 as usize, w!("Polling Interval"));
 
             // 6. Header, Clock & Date Submenu
             let clock_menu = CreatePopupMenu().unwrap_or_default();
-            let _ = AppendMenuW(clock_menu, check_flag(config.show_clock), ID_CLOCK_TOGGLE as usize, w!("Show Clock"));
-            let _ = AppendMenuW(clock_menu, check_flag(config.clock_24hr), ID_CLOCK_24HR as usize, w!("24-Hour Time Format"));
-            let _ = AppendMenuW(clock_menu, check_flag(config.show_machine_name), ID_MACHINE_NAME as usize, w!("Show Computer Name & OS"));
+            let _ = AppendMenuW(
+                clock_menu,
+                check_flag(config.show_clock),
+                ID_CLOCK_TOGGLE as usize,
+                w!("Show Clock"),
+            );
+            let _ = AppendMenuW(
+                clock_menu,
+                check_flag(config.clock_24hr),
+                ID_CLOCK_24HR as usize,
+                w!("24-Hour Time Format"),
+            );
+            let _ = AppendMenuW(
+                clock_menu,
+                check_flag(config.show_machine_name),
+                ID_MACHINE_NAME as usize,
+                w!("Show Computer Name & OS"),
+            );
             let _ = AppendMenuW(clock_menu, MF_SEPARATOR, 0, PCWSTR::null());
-            let _ = AppendMenuW(clock_menu, check_flag(config.date_format == DateFormat::Disabled), ID_DATE_DISABLED as usize, w!("Date: Disabled"));
-            let _ = AppendMenuW(clock_menu, check_flag(config.date_format == DateFormat::Short), ID_DATE_SHORT as usize, w!("Date: Short (MM/DD/YYYY)"));
-            let _ = AppendMenuW(clock_menu, check_flag(config.date_format == DateFormat::Normal), ID_DATE_NORMAL as usize, w!("Date: Normal (Mon, Jan 2)"));
-            let _ = AppendMenuW(clock_menu, check_flag(config.date_format == DateFormat::Long), ID_DATE_LONG as usize, w!("Date: Long (Monday, Jan 2)"));
-            let _ = AppendMenuW(menu, MF_POPUP, clock_menu.0 as usize, w!("Clock & Date Header"));
+            let _ = AppendMenuW(
+                clock_menu,
+                check_flag(config.date_format == DateFormat::Disabled),
+                ID_DATE_DISABLED as usize,
+                w!("Date: Disabled"),
+            );
+            let _ = AppendMenuW(
+                clock_menu,
+                check_flag(config.date_format == DateFormat::Short),
+                ID_DATE_SHORT as usize,
+                w!("Date: Short (MM/DD/YYYY)"),
+            );
+            let _ = AppendMenuW(
+                clock_menu,
+                check_flag(config.date_format == DateFormat::Normal),
+                ID_DATE_NORMAL as usize,
+                w!("Date: Normal (Mon, Jan 2)"),
+            );
+            let _ = AppendMenuW(
+                clock_menu,
+                check_flag(config.date_format == DateFormat::Long),
+                ID_DATE_LONG as usize,
+                w!("Date: Long (Monday, Jan 2)"),
+            );
+            let _ = AppendMenuW(
+                menu,
+                MF_POPUP,
+                clock_menu.0 as usize,
+                w!("Clock & Date Header"),
+            );
 
             // 7. Units & Formats Submenu
             let unit_menu = CreatePopupMenu().unwrap_or_default();
-            let _ = AppendMenuW(unit_menu, check_flag(config.temperature_unit == TemperatureUnit::Celsius), ID_TEMP_CELSIUS as usize, w!("Temperature: Celsius (°C)"));
-            let _ = AppendMenuW(unit_menu, check_flag(config.temperature_unit == TemperatureUnit::Fahrenheit), ID_TEMP_FAHRENHEIT as usize, w!("Temperature: Fahrenheit (°F)"));
+            let _ = AppendMenuW(
+                unit_menu,
+                check_flag(config.temperature_unit == TemperatureUnit::Celsius),
+                ID_TEMP_CELSIUS as usize,
+                w!("Temperature: Celsius (°C)"),
+            );
+            let _ = AppendMenuW(
+                unit_menu,
+                check_flag(config.temperature_unit == TemperatureUnit::Fahrenheit),
+                ID_TEMP_FAHRENHEIT as usize,
+                w!("Temperature: Fahrenheit (°F)"),
+            );
             let _ = AppendMenuW(unit_menu, MF_SEPARATOR, 0, PCWSTR::null());
-            let _ = AppendMenuW(unit_menu, check_flag(config.use_ghz), ID_UNIT_GHZ as usize, w!("CPU Clock: GHz"));
-            let _ = AppendMenuW(unit_menu, check_flag(!config.use_ghz), ID_UNIT_MHZ as usize, w!("CPU Clock: MHz"));
+            let _ = AppendMenuW(
+                unit_menu,
+                check_flag(config.use_ghz),
+                ID_UNIT_GHZ as usize,
+                w!("CPU Clock: GHz"),
+            );
+            let _ = AppendMenuW(
+                unit_menu,
+                check_flag(!config.use_ghz),
+                ID_UNIT_MHZ as usize,
+                w!("CPU Clock: MHz"),
+            );
             let _ = AppendMenuW(unit_menu, MF_SEPARATOR, 0, PCWSTR::null());
-            let _ = AppendMenuW(unit_menu, check_flag(config.use_bytes), ID_SPEED_BYTES as usize, w!("Network/Disk: Bytes/s (MB/s)"));
-            let _ = AppendMenuW(unit_menu, check_flag(!config.use_bytes), ID_SPEED_BITS as usize, w!("Network/Disk: Bits/s (Mbps)"));
+            let _ = AppendMenuW(
+                unit_menu,
+                check_flag(config.use_bytes),
+                ID_SPEED_BYTES as usize,
+                w!("Network/Disk: Bytes/s (MB/s)"),
+            );
+            let _ = AppendMenuW(
+                unit_menu,
+                check_flag(!config.use_bytes),
+                ID_SPEED_BITS as usize,
+                w!("Network/Disk: Bits/s (Mbps)"),
+            );
             let _ = AppendMenuW(unit_menu, MF_SEPARATOR, 0, PCWSTR::null());
-            let _ = AppendMenuW(unit_menu, check_flag(config.show_core_loads), ID_TOGGLE_CORE_LOADS as usize, w!("Show Per-Core Utilization Grid"));
+            let _ = AppendMenuW(
+                unit_menu,
+                check_flag(config.show_core_loads),
+                ID_TOGGLE_CORE_LOADS as usize,
+                w!("Show Per-Core Utilization Grid"),
+            );
             let _ = AppendMenuW(unit_menu, MF_SEPARATOR, 0, PCWSTR::null());
-            let _ = AppendMenuW(unit_menu, check_flag(config.sort_processes_by == ProcessSortBy::Cpu), ID_PROC_SORT_CPU as usize, w!("Process Ranking: CPU Usage"));
-            let _ = AppendMenuW(unit_menu, check_flag(config.sort_processes_by == ProcessSortBy::Memory), ID_PROC_SORT_RAM as usize, w!("Process Ranking: RAM Memory"));
-            let _ = AppendMenuW(unit_menu, check_flag(config.sort_processes_by == ProcessSortBy::Disk), ID_PROC_SORT_DISK as usize, w!("Process Ranking: Disk I/O"));
+            let _ = AppendMenuW(
+                unit_menu,
+                check_flag(config.sort_processes_by == ProcessSortBy::Cpu),
+                ID_PROC_SORT_CPU as usize,
+                w!("Process Ranking: CPU Usage"),
+            );
+            let _ = AppendMenuW(
+                unit_menu,
+                check_flag(config.sort_processes_by == ProcessSortBy::Memory),
+                ID_PROC_SORT_RAM as usize,
+                w!("Process Ranking: RAM Memory"),
+            );
+            let _ = AppendMenuW(
+                unit_menu,
+                check_flag(config.sort_processes_by == ProcessSortBy::Disk),
+                ID_PROC_SORT_DISK as usize,
+                w!("Process Ranking: Disk I/O"),
+            );
             let _ = AppendMenuW(menu, MF_POPUP, unit_menu.0 as usize, w!("Units & Display"));
 
             // 8. Card Visibility & Monitors Submenu
             let card_menu = CreatePopupMenu().unwrap_or_default();
-            let _ = AppendMenuW(card_menu, check_flag(config.show_cpu), ID_TOGGLE_CPU as usize, w!("Processor (CPU)"));
-            let _ = AppendMenuW(card_menu, check_flag(config.show_gpu), ID_TOGGLE_GPU as usize, w!("Graphics (GPU)"));
-            let _ = AppendMenuW(card_menu, check_flag(config.show_audio), ID_TOGGLE_AUDIO as usize, w!("Audio Playback Device"));
-            let _ = AppendMenuW(card_menu, check_flag(config.show_ram), ID_TOGGLE_RAM as usize, w!("System Memory (RAM)"));
-            let _ = AppendMenuW(card_menu, check_flag(config.show_storage), ID_TOGGLE_STORAGE as usize, w!("Storage & Drives"));
-            let _ = AppendMenuW(card_menu, check_flag(config.show_network), ID_TOGGLE_NETWORK as usize, w!("Network I/O & Local IP"));
-            let _ = AppendMenuW(card_menu, check_flag(config.show_processes), ID_TOGGLE_PROCESSES as usize, w!("Top Processes"));
-            let _ = AppendMenuW(card_menu, check_flag(config.show_virtual_memory), ID_TOGGLE_VM as usize, w!("Virtual Memory"));
-            let _ = AppendMenuW(card_menu, check_flag(config.show_battery), ID_TOGGLE_BATTERY as usize, w!("Power & Battery"));
-            let _ = AppendMenuW(card_menu, check_flag(config.show_system_overview), ID_TOGGLE_SYSTEM as usize, w!("System Overview"));
-            let _ = AppendMenuW(card_menu, check_flag(config.show_sensors_card), ID_TOGGLE_SENSORS_CARD as usize, w!("Hardware & Sensors Explorer"));
+            let _ = AppendMenuW(
+                card_menu,
+                check_flag(config.show_cpu),
+                ID_TOGGLE_CPU as usize,
+                w!("Processor (CPU)"),
+            );
+            let _ = AppendMenuW(
+                card_menu,
+                check_flag(config.show_gpu),
+                ID_TOGGLE_GPU as usize,
+                w!("Graphics (GPU)"),
+            );
+            let _ = AppendMenuW(
+                card_menu,
+                check_flag(config.show_audio),
+                ID_TOGGLE_AUDIO as usize,
+                w!("Audio Playback Device"),
+            );
+            let _ = AppendMenuW(
+                card_menu,
+                check_flag(config.show_ram),
+                ID_TOGGLE_RAM as usize,
+                w!("System Memory (RAM)"),
+            );
+            let _ = AppendMenuW(
+                card_menu,
+                check_flag(config.show_storage),
+                ID_TOGGLE_STORAGE as usize,
+                w!("Storage & Drives"),
+            );
+            let _ = AppendMenuW(
+                card_menu,
+                check_flag(config.show_network),
+                ID_TOGGLE_NETWORK as usize,
+                w!("Network I/O & Local IP"),
+            );
+            let _ = AppendMenuW(
+                card_menu,
+                check_flag(config.show_processes),
+                ID_TOGGLE_PROCESSES as usize,
+                w!("Top Processes"),
+            );
+            let _ = AppendMenuW(
+                card_menu,
+                check_flag(config.show_virtual_memory),
+                ID_TOGGLE_VM as usize,
+                w!("Virtual Memory"),
+            );
+            let _ = AppendMenuW(
+                card_menu,
+                check_flag(config.show_battery),
+                ID_TOGGLE_BATTERY as usize,
+                w!("Power & Battery"),
+            );
+            let _ = AppendMenuW(
+                card_menu,
+                check_flag(config.show_system_overview),
+                ID_TOGGLE_SYSTEM as usize,
+                w!("System Overview"),
+            );
+            let _ = AppendMenuW(
+                card_menu,
+                check_flag(config.show_sensors_card),
+                ID_TOGGLE_SENSORS_CARD as usize,
+                w!("Hardware & Sensors Explorer"),
+            );
             let _ = AppendMenuW(card_menu, MF_SEPARATOR, 0, PCWSTR::null());
-            let _ = AppendMenuW(card_menu, check_flag(config.show_disabled_hardware), ID_TOGGLE_DISABLED_HARDWARE as usize, w!("Show Disabled / Offline Hardware & Sensors"));
+            let _ = AppendMenuW(
+                card_menu,
+                check_flag(config.show_disabled_hardware),
+                ID_TOGGLE_DISABLED_HARDWARE as usize,
+                w!("Show Disabled / Offline Hardware & Sensors"),
+            );
             let _ = AppendMenuW(card_menu, MF_SEPARATOR, 0, PCWSTR::null());
-            let _ = AppendMenuW(card_menu, check_flag(config.show_all_gpus), ID_TOGGLE_ALL_GPUS as usize, w!("GPU: Multi-GPU Enumeration"));
-            let _ = AppendMenuW(card_menu, check_flag(config.show_gpu_shared_memory), ID_TOGGLE_GPU_SHARED as usize, w!("GPU: Shared Memory Breakdown"));
+            let _ = AppendMenuW(
+                card_menu,
+                check_flag(config.show_all_gpus),
+                ID_TOGGLE_ALL_GPUS as usize,
+                w!("GPU: Multi-GPU Enumeration"),
+            );
+            let _ = AppendMenuW(
+                card_menu,
+                check_flag(config.show_gpu_shared_memory),
+                ID_TOGGLE_GPU_SHARED as usize,
+                w!("GPU: Shared Memory Breakdown"),
+            );
             let _ = AppendMenuW(menu, MF_POPUP, card_menu.0 as usize, w!("Monitors & Cards"));
 
             // 9. Behavior & Startup Options Submenu
             let opt_menu = CreatePopupMenu().unwrap_or_default();
-            let _ = AppendMenuW(opt_menu, check_flag(config.run_at_startup), ID_STARTUP_TOGGLE as usize, w!("Run at Windows Startup"));
-            let _ = AppendMenuW(opt_menu, check_flag(config.auto_pause_fullscreen), ID_AUTOPAUSE_TOGGLE as usize, w!("Auto-Pause on Fullscreen / Games"));
-            let _ = AppendMenuW(opt_menu, check_flag(config.stay_on_top), ID_TOPMOST_TOGGLE as usize, w!("Always On Top"));
-            let _ = AppendMenuW(opt_menu, check_flag(config.click_through), ID_CLICKTHROUGH_TOGGLE as usize, w!("Click-Through (Transparent)"));
+            let _ = AppendMenuW(
+                opt_menu,
+                check_flag(config.run_at_startup),
+                ID_STARTUP_TOGGLE as usize,
+                w!("Run at Windows Startup"),
+            );
+            let _ = AppendMenuW(
+                opt_menu,
+                check_flag(config.auto_pause_fullscreen),
+                ID_AUTOPAUSE_TOGGLE as usize,
+                w!("Auto-Pause on Fullscreen / Games"),
+            );
+            let _ = AppendMenuW(
+                opt_menu,
+                check_flag(config.stay_on_top),
+                ID_TOPMOST_TOGGLE as usize,
+                w!("Always On Top"),
+            );
+            let _ = AppendMenuW(
+                opt_menu,
+                check_flag(config.click_through),
+                ID_CLICKTHROUGH_TOGGLE as usize,
+                w!("Click-Through (Transparent)"),
+            );
             let _ = AppendMenuW(menu, MF_POPUP, opt_menu.0 as usize, w!("Window & Behavior"));
 
             let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
-            let _ = AppendMenuW(menu, MF_STRING, ID_TRAY_OPEN_CONFIG as usize, w!("Open Config File (JSON)"));
+            let _ = AppendMenuW(
+                menu,
+                MF_STRING,
+                ID_TRAY_OPEN_CONFIG as usize,
+                w!("Open Config File (JSON)"),
+            );
             let _ = AppendMenuW(menu, MF_STRING, ID_TRAY_LOGS as usize, w!("Open Debug Log"));
-            let _ = AppendMenuW(menu, MF_STRING, ID_TRAY_ABOUT as usize, w!("About Diagnostics"));
+            let _ = AppendMenuW(
+                menu,
+                MF_STRING,
+                ID_TRAY_ABOUT as usize,
+                w!("About Diagnostics"),
+            );
             let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
-            let _ = AppendMenuW(menu, MF_STRING, ID_TRAY_EXIT as usize, w!("Exit Application"));
+            let _ = AppendMenuW(
+                menu,
+                MF_STRING,
+                ID_TRAY_EXIT as usize,
+                w!("Exit Application"),
+            );
 
             let mut pt = POINT::default();
             let _ = GetCursorPos(&mut pt);
@@ -426,7 +676,7 @@ impl SystemTray {
 
 fn create_pill_icon(ram_percentage: u8) -> HICON {
     unsafe {
-        let screen_dc = GetDC(HWND(0 as *mut _));
+        let screen_dc = GetDC(HWND::default());
         let mem_dc = CreateCompatibleDC(screen_dc);
         let mem_bmp = CreateCompatibleBitmap(screen_dc, 32, 32);
         let old_bmp = SelectObject(mem_dc, mem_bmp);
@@ -513,7 +763,7 @@ fn create_pill_icon(ram_percentage: u8) -> HICON {
         DeleteObject(mem_bmp);
         DeleteObject(mask_bmp);
         let _ = DeleteDC(mem_dc);
-        let _ = ReleaseDC(HWND(0 as *mut _), screen_dc);
+        let _ = ReleaseDC(HWND::default(), screen_dc);
 
         new_icon
     }

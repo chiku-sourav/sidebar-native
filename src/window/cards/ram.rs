@@ -68,8 +68,7 @@ impl CardRenderer for RamCard {
 
             inside_y += ctx.lh(24);
             let ram_bar_w = w - 28;
-            let ram_fill =
-                ((snapshot.ram.usage_percentage / 100.0) * ram_bar_w as f32) as i32;
+            let ram_fill = ((snapshot.ram.usage_percentage / 100.0) * ram_bar_w as f32) as i32;
             ctx.draw_progress_bar(
                 hdc,
                 x + 14,

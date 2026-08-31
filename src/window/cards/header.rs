@@ -1,5 +1,7 @@
 use windows::Win32::Foundation::SIZE;
-use windows::Win32::Graphics::Gdi::{GetTextExtentPoint32W, SelectObject, SetTextColor, TextOutW, HDC};
+use windows::Win32::Graphics::Gdi::{
+    GetTextExtentPoint32W, SelectObject, SetTextColor, TextOutW, HDC,
+};
 use windows::Win32::System::SystemInformation::GetLocalTime;
 
 use crate::config::{AppConfig, DateFormat};
@@ -9,14 +11,30 @@ use crate::window::context::RenderContext;
 
 const DAYS: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAYS_LONG: [&str; 7] = [
-    "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
 ];
 const MONTHS: [&str; 12] = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 const MONTHS_LONG: [&str; 12] = [
-    "January", "February", "March", "April", "May", "June", "July", "August", "September",
-    "October", "November", "December",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
 ];
 
 pub struct HeaderCard;

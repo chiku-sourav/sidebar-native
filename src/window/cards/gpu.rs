@@ -26,16 +26,31 @@ impl CardRenderer for GpuCard {
         let scale = config.font_size.scale();
         let sidebar_w = config.sidebar_width.max(300);
         let gpus: Vec<_> = if config.show_all_gpus && !snapshot.gpu.gpus.is_empty() {
-            snapshot.gpu.gpus.iter().filter(|g| g.is_active || config.show_disabled_hardware).collect()
+            snapshot
+                .gpu
+                .gpus
+                .iter()
+                .filter(|g| g.is_active || config.show_disabled_hardware)
+                .collect()
         } else if !snapshot.gpu.gpus.is_empty() {
-            snapshot.gpu.gpus.iter().filter(|g| g.is_active).take(1).collect()
+            snapshot
+                .gpu
+                .gpus
+                .iter()
+                .filter(|g| g.is_active)
+                .take(1)
+                .collect()
         } else {
             Vec::new()
         };
 
         if gpus.is_empty() {
             let has_shared = config.show_gpu_shared_memory;
-            return if has_shared { (178.0 * scale).round() as i32 } else { (132.0 * scale).round() as i32 };
+            return if has_shared {
+                (178.0 * scale).round() as i32
+            } else {
+                (132.0 * scale).round() as i32
+            };
         }
 
         let mut total_h = 0;
@@ -72,9 +87,22 @@ impl CardRenderer for GpuCard {
             let scale = config.font_size.scale();
             let sidebar_w = config.sidebar_width.max(300);
             let gpus_to_show: Vec<_> = if config.show_all_gpus && !snapshot.gpu.gpus.is_empty() {
-                snapshot.gpu.gpus.iter().filter(|g| g.is_active || config.show_disabled_hardware).cloned().collect()
+                snapshot
+                    .gpu
+                    .gpus
+                    .iter()
+                    .filter(|g| g.is_active || config.show_disabled_hardware)
+                    .cloned()
+                    .collect()
             } else {
-                vec![snapshot.gpu.gpus.iter().find(|g| g.is_active).or_else(|| snapshot.gpu.gpus.first()).cloned().unwrap_or_default()]
+                vec![snapshot
+                    .gpu
+                    .gpus
+                    .iter()
+                    .find(|g| g.is_active)
+                    .or_else(|| snapshot.gpu.gpus.first())
+                    .cloned()
+                    .unwrap_or_default()]
             };
 
             let mut cur_y = y;
@@ -85,7 +113,15 @@ impl CardRenderer for GpuCard {
 
                 if !gpu.is_active {
                     let gpu_card_h = ((95.0 + extra_name_h) * scale).round() as i32;
-                    ctx.draw_card(hdc, x, cur_y, w, gpu_card_h, ctx.pal.bg_card, ctx.pal.card_border);
+                    ctx.draw_card(
+                        hdc,
+                        x,
+                        cur_y,
+                        w,
+                        gpu_card_h,
+                        ctx.pal.bg_card,
+                        ctx.pal.card_border,
+                    );
 
                     let mut inside_y = cur_y + ctx.lh(11);
                     SelectObject(hdc, ctx.hfont_header);
@@ -125,7 +161,15 @@ impl CardRenderer for GpuCard {
                 let has_shared = config.show_gpu_shared_memory && gpu.shared_total_bytes > 0;
                 let base_h = if has_shared { 178.0 } else { 132.0 };
                 let gpu_card_h = ((base_h + extra_name_h) * scale).round() as i32;
-                ctx.draw_card(hdc, x, cur_y, w, gpu_card_h, ctx.pal.bg_card, ctx.pal.card_border);
+                ctx.draw_card(
+                    hdc,
+                    x,
+                    cur_y,
+                    w,
+                    gpu_card_h,
+                    ctx.pal.bg_card,
+                    ctx.pal.card_border,
+                );
 
                 let mut inside_y = cur_y + ctx.lh(11);
                 SelectObject(hdc, ctx.hfont_header);
@@ -195,8 +239,7 @@ impl CardRenderer for GpuCard {
 
                 inside_y += ctx.lh(24);
                 let vram_bar_w = w - 28;
-                let vram_fill =
-                    ((gpu.vram_usage_percentage / 100.0) * vram_bar_w as f32) as i32;
+                let vram_fill = ((gpu.vram_usage_percentage / 100.0) * vram_bar_w as f32) as i32;
                 ctx.draw_progress_bar(
                     hdc,
                     x + 14,
@@ -210,10 +253,8 @@ impl CardRenderer for GpuCard {
 
                 if has_shared {
                     inside_y += ctx.lh(18);
-                    let shared_u_gb =
-                        gpu.shared_used_bytes as f32 / (1024.0 * 1024.0 * 1024.0);
-                    let shared_t_gb =
-                        gpu.shared_total_bytes as f32 / (1024.0 * 1024.0 * 1024.0);
+                    let shared_u_gb = gpu.shared_used_bytes as f32 / (1024.0 * 1024.0 * 1024.0);
+                    let shared_t_gb = gpu.shared_total_bytes as f32 / (1024.0 * 1024.0 * 1024.0);
                     ctx.draw_key_value(
                         hdc,
                         x + 14,

@@ -2,9 +2,9 @@
 
 use windows::core::{w, Interface, PCWSTR, PWSTR};
 use windows::Win32::Graphics::Dxgi::{
-    CreateDXGIFactory1, IDXGIAdapter1, IDXGIAdapter3, IDXGIFactory1,
-    DXGI_ADAPTER_FLAG_SOFTWARE, DXGI_MEMORY_SEGMENT_GROUP_LOCAL,
-    DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, DXGI_QUERY_VIDEO_MEMORY_INFO,
+    CreateDXGIFactory1, IDXGIAdapter1, IDXGIAdapter3, IDXGIFactory1, DXGI_ADAPTER_FLAG_SOFTWARE,
+    DXGI_MEMORY_SEGMENT_GROUP_LOCAL, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL,
+    DXGI_QUERY_VIDEO_MEMORY_INFO,
 };
 use windows::Win32::System::Registry::{
     RegCloseKey, RegEnumKeyExW, RegOpenKeyExW, RegQueryValueExW, HKEY, HKEY_LOCAL_MACHINE,
@@ -76,7 +76,14 @@ impl GpuCollector {
 
                         if let Ok(adapter3) = adapter.cast::<IDXGIAdapter3>() {
                             let mut local_info = DXGI_QUERY_VIDEO_MEMORY_INFO::default();
-                            if adapter3.QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &mut local_info).is_ok() {
+                            if adapter3
+                                .QueryVideoMemoryInfo(
+                                    0,
+                                    DXGI_MEMORY_SEGMENT_GROUP_LOCAL,
+                                    &mut local_info,
+                                )
+                                .is_ok()
+                            {
                                 vram_used = local_info.CurrentUsage;
                                 if local_info.Budget > 0 {
                                     vram_total = local_info.Budget;
@@ -84,7 +91,14 @@ impl GpuCollector {
                             }
 
                             let mut non_local_info = DXGI_QUERY_VIDEO_MEMORY_INFO::default();
-                            if adapter3.QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &mut non_local_info).is_ok() {
+                            if adapter3
+                                .QueryVideoMemoryInfo(
+                                    0,
+                                    DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL,
+                                    &mut non_local_info,
+                                )
+                                .is_ok()
+                            {
                                 shared_used = non_local_info.CurrentUsage;
                                 if non_local_info.Budget > 0 {
                                     shared_total = non_local_info.Budget;
@@ -110,9 +124,11 @@ impl GpuCollector {
                             0x8086 => "Intel",
                             0x1414 => "Microsoft",
                             _ => "Graphics",
-                        }.to_string();
+                        }
+                        .to_string();
 
-                        let gpu_type = if dedicated_video > 512 * 1024 * 1024 || vendor == "NVIDIA" {
+                        let gpu_type = if dedicated_video > 512 * 1024 * 1024 || vendor == "NVIDIA"
+                        {
                             "Discrete GPU".to_string()
                         } else {
                             "Integrated GPU".to_string()
@@ -148,7 +164,9 @@ impl GpuCollector {
             let already_present = gpus.iter().any(|g| {
                 let g_low = g.name.to_lowercase();
                 let reg_low = reg_gpu.name.to_lowercase();
-                g_low == reg_low || (g_low.contains("radeon") && reg_low.contains("radeon")) || (g_low.contains("nvidia") && reg_low.contains("nvidia"))
+                g_low == reg_low
+                    || (g_low.contains("radeon") && reg_low.contains("radeon"))
+                    || (g_low.contains("nvidia") && reg_low.contains("nvidia"))
             });
 
             if !already_present {
@@ -157,8 +175,13 @@ impl GpuCollector {
         }
 
         // Prefer discrete GPU or first active adapter
-        let primary = gpus.iter()
-            .find(|g| g.is_active && (g.dedicated_vram_bytes > 512 * 1024 * 1024 || g.gpu_type.contains("Discrete")))
+        let primary = gpus
+            .iter()
+            .find(|g| {
+                g.is_active
+                    && (g.dedicated_vram_bytes > 512 * 1024 * 1024
+                        || g.gpu_type.contains("Discrete"))
+            })
             .or_else(|| gpus.iter().find(|g| g.is_active))
             .or_else(|| gpus.first())
             .cloned()
@@ -170,7 +193,11 @@ impl GpuCollector {
         let shared_total_gb = primary.shared_total_bytes as f32 / (1024.0 * 1024.0 * 1024.0);
 
         GpuMetrics {
-            primary_gpu_name: if primary.name.is_empty() { "Graphics Adapter".to_string() } else { primary.name },
+            primary_gpu_name: if primary.name.is_empty() {
+                "Graphics Adapter".to_string()
+            } else {
+                primary.name
+            },
             primary_vendor: primary.vendor,
             primary_type: primary.gpu_type,
             primary_vram_used_gb: used_gb,
@@ -187,7 +214,8 @@ impl GpuCollector {
 pub fn discover_registry_gpus() -> Vec<GpuInfo> {
     let mut results = Vec::new();
     unsafe {
-        let class_path = w!("SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}");
+        let class_path =
+            w!("SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}");
         let mut hkey = HKEY::default();
         if RegOpenKeyExW(HKEY_LOCAL_MACHINE, class_path, 0, KEY_READ, &mut hkey).is_ok() {
             let mut index = 0;
@@ -203,16 +231,28 @@ pub fn discover_registry_gpus() -> Vec<GpuInfo> {
                     PWSTR::null(),
                     None,
                     None,
-                ).is_err() {
+                )
+                .is_err()
+                {
                     break;
                 }
                 index += 1;
 
                 let sub_str = String::from_utf16_lossy(&subkey_name[..name_len as usize]);
                 if sub_str.starts_with("0") {
-                    let subkey_wstr = format!("{}\0", sub_str).encode_utf16().collect::<Vec<u16>>();
+                    let subkey_wstr = format!("{}\0", sub_str)
+                        .encode_utf16()
+                        .collect::<Vec<u16>>();
                     let mut sub_hkey = HKEY::default();
-                    if RegOpenKeyExW(hkey, PCWSTR(subkey_wstr.as_ptr()), 0, KEY_READ, &mut sub_hkey).is_ok() {
+                    if RegOpenKeyExW(
+                        hkey,
+                        PCWSTR(subkey_wstr.as_ptr()),
+                        0,
+                        KEY_READ,
+                        &mut sub_hkey,
+                    )
+                    .is_ok()
+                    {
                         let mut desc_buf = [0u8; 512];
                         let mut desc_len = desc_buf.len() as u32;
                         let mut val_type = REG_VALUE_TYPE::default();
@@ -225,12 +265,16 @@ pub fn discover_registry_gpus() -> Vec<GpuInfo> {
                             Some(&mut val_type),
                             Some(desc_buf.as_mut_ptr()),
                             Some(&mut desc_len),
-                        ).is_ok() && desc_len > 0 {
+                        )
+                        .is_ok()
+                            && desc_len > 0
+                        {
                             let u16_slice = std::slice::from_raw_parts(
                                 desc_buf.as_ptr() as *const u16,
                                 (desc_len as usize / 2).saturating_sub(1),
                             );
-                            let driver_desc = String::from_utf16_lossy(u16_slice).trim().to_string();
+                            let driver_desc =
+                                String::from_utf16_lossy(u16_slice).trim().to_string();
 
                             if !driver_desc.is_empty() && !driver_desc.contains("Basic Render") {
                                 let mut prov_buf = [0u8; 256];
@@ -244,15 +288,21 @@ pub fn discover_registry_gpus() -> Vec<GpuInfo> {
                                     None,
                                     Some(prov_buf.as_mut_ptr()),
                                     Some(&mut prov_len),
-                                ).is_ok() && prov_len > 0 {
+                                )
+                                .is_ok()
+                                    && prov_len > 0
+                                {
                                     let prov_u16 = std::slice::from_raw_parts(
                                         prov_buf.as_ptr() as *const u16,
                                         (prov_len as usize / 2).saturating_sub(1),
                                     );
-                                    let prov_str = String::from_utf16_lossy(prov_u16).to_lowercase();
+                                    let prov_str =
+                                        String::from_utf16_lossy(prov_u16).to_lowercase();
                                     if prov_str.contains("nvidia") {
                                         vendor = "NVIDIA".to_string();
-                                    } else if prov_str.contains("amd") || prov_str.contains("advanced micro") {
+                                    } else if prov_str.contains("amd")
+                                        || prov_str.contains("advanced micro")
+                                    {
                                         vendor = "AMD".to_string();
                                     } else if prov_str.contains("intel") {
                                         vendor = "Intel".to_string();
@@ -269,7 +319,11 @@ pub fn discover_registry_gpus() -> Vec<GpuInfo> {
                                 results.push(GpuInfo {
                                     name: driver_desc,
                                     vendor,
-                                    gpu_type: if is_discrete { "Discrete GPU".to_string() } else { "Integrated GPU".to_string() },
+                                    gpu_type: if is_discrete {
+                                        "Discrete GPU".to_string()
+                                    } else {
+                                        "Integrated GPU".to_string()
+                                    },
                                     is_active: false,
                                     ..Default::default()
                                 });
@@ -290,7 +344,11 @@ impl super::collector::TelemetryCollector for GpuCollector {
         "GPU"
     }
 
-    fn update(&mut self, snapshot: &mut super::TelemetrySnapshot, _config: &crate::config::AppConfig) {
+    fn update(
+        &mut self,
+        snapshot: &mut super::TelemetrySnapshot,
+        _config: &crate::config::AppConfig,
+    ) {
         snapshot.gpu = self.collect();
     }
 }

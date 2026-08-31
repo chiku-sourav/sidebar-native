@@ -1,11 +1,7 @@
-﻿use windows::core::w;
+use windows::core::w;
 use windows::Win32::Foundation::HWND;
-use windows::Win32::Graphics::Dwm::{
-    DwmSetWindowAttribute, DWMWINDOWATTRIBUTE,
-};
-use windows::Win32::System::Registry::{
-    RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD,
-};
+use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWINDOWATTRIBUTE};
+use windows::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD};
 
 use crate::config::BackdropEffect;
 

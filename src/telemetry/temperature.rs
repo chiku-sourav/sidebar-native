@@ -40,7 +40,12 @@ impl TemperatureCollector {
 
             if temp_val > 0.0 {
                 let lcase = label.to_lowercase();
-                if lcase.contains("cpu") || lcase.contains("core") || lcase.contains("package") || lcase.contains("tz") || lcase.contains("thermal") {
+                if lcase.contains("cpu")
+                    || lcase.contains("core")
+                    || lcase.contains("package")
+                    || lcase.contains("tz")
+                    || lcase.contains("thermal")
+                {
                     if cpu_temp.is_none() || temp_val > cpu_temp.unwrap_or(0.0) {
                         cpu_temp = Some(temp_val);
                     }
@@ -84,7 +89,11 @@ impl super::collector::TelemetryCollector for TemperatureCollector {
         "Thermals"
     }
 
-    fn update(&mut self, snapshot: &mut super::TelemetrySnapshot, _config: &crate::config::AppConfig) {
+    fn update(
+        &mut self,
+        snapshot: &mut super::TelemetrySnapshot,
+        _config: &crate::config::AppConfig,
+    ) {
         snapshot.temperature = self.collect();
     }
 }

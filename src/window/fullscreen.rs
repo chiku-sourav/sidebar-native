@@ -1,9 +1,12 @@
-﻿#![allow(unused_imports, dead_code, unused_must_use)]
+#![allow(unused_imports, dead_code, unused_must_use)]
 
 use windows::Win32::Foundation::{HWND, RECT};
-use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, MonitorFromWindow, HMONITOR, MONITORINFO, MONITOR_DEFAULTTOPRIMARY};
+use windows::Win32::Graphics::Gdi::{
+    GetMonitorInfoW, MonitorFromWindow, HMONITOR, MONITORINFO, MONITOR_DEFAULTTOPRIMARY,
+};
 use windows::Win32::UI::WindowsAndMessaging::{
-    FindWindowW, GetDesktopWindow, GetForegroundWindow, GetShellWindow, GetWindowRect, IsWindowVisible,
+    FindWindowW, GetDesktopWindow, GetForegroundWindow, GetShellWindow, GetWindowRect,
+    IsWindowVisible,
 };
 
 pub struct FullscreenDetector;

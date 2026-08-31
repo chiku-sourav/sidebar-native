@@ -76,7 +76,11 @@ impl NetworkCollector {
 
             adapters.push(NetworkAdapterInfo {
                 name: interface_name.clone(),
-                ip: if adapter_ip.is_empty() { "Disconnected".to_string() } else { adapter_ip },
+                ip: if adapter_ip.is_empty() {
+                    "Disconnected".to_string()
+                } else {
+                    adapter_ip
+                },
                 download_bytes_sec: rx,
                 upload_bytes_sec: tx,
                 total_received: data.total_received(),
@@ -93,7 +97,9 @@ impl NetworkCollector {
         adapters.sort_by(|a, b| {
             let traffic_b = b.download_bytes_sec + b.upload_bytes_sec;
             let traffic_a = a.download_bytes_sec + a.upload_bytes_sec;
-            traffic_b.cmp(&traffic_a).then_with(|| b.is_up.cmp(&a.is_up))
+            traffic_b
+                .cmp(&traffic_a)
+                .then_with(|| b.is_up.cmp(&a.is_up))
         });
 
         NetworkMetrics {
@@ -113,7 +119,11 @@ impl super::collector::TelemetryCollector for NetworkCollector {
         "Network"
     }
 
-    fn update(&mut self, snapshot: &mut super::TelemetrySnapshot, _config: &crate::config::AppConfig) {
+    fn update(
+        &mut self,
+        snapshot: &mut super::TelemetrySnapshot,
+        _config: &crate::config::AppConfig,
+    ) {
         snapshot.network = self.collect();
     }
 }

@@ -9,4 +9,3 @@ pub trait TelemetryCollector: Send + Sync {
     /// Collects metrics and updates the corresponding section of TelemetrySnapshot
     fn update(&mut self, snapshot: &mut TelemetrySnapshot, config: &AppConfig);
 }
-

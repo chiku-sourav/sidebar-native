@@ -98,7 +98,10 @@ impl SensorsCollector {
                 let gpu_temp = snapshot.temperature.gpu_temp.unwrap_or(44.0);
                 list.push(HardwareSensor {
                     category: "Graphics (GPU)".to_string(),
-                    name: format!("{} Core Temp", gpu.name.chars().take(22).collect::<String>()),
+                    name: format!(
+                        "{} Core Temp",
+                        gpu.name.chars().take(22).collect::<String>()
+                    ),
                     sensor_type: "Temperature".to_string(),
                     value: fmt_temp(gpu_temp),
                     is_active: true,
@@ -108,7 +111,10 @@ impl SensorsCollector {
                 let vram_total_gb = gpu.vram_total_bytes as f32 / (1024.0 * 1024.0 * 1024.0);
                 list.push(HardwareSensor {
                     category: "Graphics (GPU)".to_string(),
-                    name: format!("{} Dedicated VRAM", gpu.name.chars().take(20).collect::<String>()),
+                    name: format!(
+                        "{} Dedicated VRAM",
+                        gpu.name.chars().take(20).collect::<String>()
+                    ),
                     sensor_type: "Memory".to_string(),
                     value: format!("{:.1} GB / {:.1} GB", vram_used_gb, vram_total_gb.max(0.1)),
                     is_active: true,
@@ -119,7 +125,10 @@ impl SensorsCollector {
                     let shared_t = gpu.shared_total_bytes as f32 / (1024.0 * 1024.0 * 1024.0);
                     list.push(HardwareSensor {
                         category: "Graphics (GPU)".to_string(),
-                        name: format!("{} Shared Memory", gpu.name.chars().take(20).collect::<String>()),
+                        name: format!(
+                            "{} Shared Memory",
+                            gpu.name.chars().take(20).collect::<String>()
+                        ),
                         sensor_type: "Memory".to_string(),
                         value: format!("{:.1} GB / {:.1} GB", shared_u, shared_t.max(0.1)),
                         is_active: true,
@@ -228,10 +237,7 @@ impl SensorsCollector {
         });
 
         if config.show_disabled_hardware {
-            let common_audio = [
-                "Realtek Digital Audio (S/PDIF)",
-                "HDMI / DisplayPort Audio",
-            ];
+            let common_audio = ["Realtek Digital Audio (S/PDIF)", "HDMI / DisplayPort Audio"];
             for dev in common_audio {
                 list.push(HardwareSensor {
                     category: "Audio Endpoints".to_string(),
@@ -251,7 +257,15 @@ impl SensorsCollector {
                 category: "Power & Battery".to_string(),
                 name: "Main Lithium-Ion Battery".to_string(),
                 sensor_type: "Power".to_string(),
-                value: format!("{:.0}% ({})", snapshot.battery.percentage, if snapshot.battery.is_charging { "Charging" } else { "On Battery" }),
+                value: format!(
+                    "{:.0}% ({})",
+                    snapshot.battery.percentage,
+                    if snapshot.battery.is_charging {
+                        "Charging"
+                    } else {
+                        "On Battery"
+                    }
+                ),
                 is_active: true,
             });
         } else if config.show_disabled_hardware {

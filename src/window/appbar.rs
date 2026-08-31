@@ -1,4 +1,4 @@
-﻿use windows::Win32::Foundation::RECT;
+use windows::Win32::Foundation::RECT;
 use windows::Win32::UI::WindowsAndMessaging::{
     GetSystemMetrics, SystemParametersInfoW, SM_CXSCREEN, SM_CYSCREEN, SPI_GETWORKAREA,
     SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS,
@@ -25,7 +25,12 @@ impl AppBarManager {
                 let left = right - width;
                 let top = bottom - height;
 
-                RECT { left, top, right, bottom }
+                RECT {
+                    left,
+                    top,
+                    right,
+                    bottom,
+                }
             } else {
                 let screen_w = GetSystemMetrics(SM_CXSCREEN);
                 let screen_h = GetSystemMetrics(SM_CYSCREEN);
@@ -34,7 +39,12 @@ impl AppBarManager {
                 let left = right - width;
                 let top = bottom - height;
 
-                RECT { left, top, right, bottom }
+                RECT {
+                    left,
+                    top,
+                    right,
+                    bottom,
+                }
             }
         }
     }

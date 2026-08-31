@@ -65,9 +65,13 @@ impl CardRenderer for ProcessesCard {
             } else {
                 for proc in snapshot.top_processes.iter().take(6) {
                     let key_text = format!("{} ({:.1}% CPU)", proc.name, proc.cpu_usage);
-                    
+
                     let val_text = if proc.disk_total_bytes_sec > 1024 * 50 {
-                        format!("{} • Disk {}", proc.formatted_memory, format_speed(proc.disk_total_bytes_sec))
+                        format!(
+                            "{} • Disk {}",
+                            proc.formatted_memory,
+                            format_speed(proc.disk_total_bytes_sec)
+                        )
                     } else {
                         proc.formatted_memory.clone()
                     };

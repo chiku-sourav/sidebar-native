@@ -58,7 +58,12 @@ impl CardRenderer for StorageCard {
             let mut inside_y = y + ctx.lh(12);
             SelectObject(hdc, ctx.hfont_header);
             SetTextColor(hdc, ctx.pal.text_muted);
-            ctx.draw_text(hdc, x + 14, inside_y, "STORAGE & PHYSICAL DRIVES (NVMe • SATA • LINUX)");
+            ctx.draw_text(
+                hdc,
+                x + 14,
+                inside_y,
+                "STORAGE & PHYSICAL DRIVES (NVMe • SATA • LINUX)",
+            );
 
             inside_y += ctx.lh(20);
 
@@ -81,14 +86,18 @@ impl CardRenderer for StorageCard {
                     // 2. Hardware Model Name (Wrapped to next line if big)
                     SelectObject(hdc, ctx.hfont_caption);
                     SetTextColor(hdc, ctx.pal.text_muted);
-                    let model_lines = ctx.wrap_text(hdc, ctx.hfont_caption, &drive.model_name, w - 28);
+                    let model_lines =
+                        ctx.wrap_text(hdc, ctx.hfont_caption, &drive.model_name, w - 28);
                     for line in model_lines {
                         ctx.draw_text(hdc, x + 14, inside_y, &line);
                         inside_y += ctx.lh(18);
                     }
 
                     // 3. Capacity & Usage
-                    let space_str = format!("{:.1} GB Free / {:.1} GB ({:.0}%)", free_gb, tot_gb, drive.usage_percentage);
+                    let space_str = format!(
+                        "{:.1} GB Free / {:.1} GB ({:.0}%)",
+                        free_gb, tot_gb, drive.usage_percentage
+                    );
                     ctx.draw_key_value(
                         hdc,
                         x + 14,

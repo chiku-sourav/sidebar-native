@@ -1,7 +1,10 @@
-use sidebar_native::config::{AppConfig, AppTheme, BackdropEffect, FontSize, ProcessSortBy, TemperatureUnit, WindowWidthPreset};
+use sidebar_native::config::{
+    AppConfig, AppTheme, BackdropEffect, FontSize, ProcessSortBy, TemperatureUnit,
+    WindowWidthPreset,
+};
+use sidebar_native::telemetry::network::NetworkAdapterInfo;
 use sidebar_native::telemetry::process::{format_bytes, format_speed, ProcessInfo};
 use sidebar_native::telemetry::storage::DriveInfo;
-use sidebar_native::telemetry::network::NetworkAdapterInfo;
 
 #[test]
 fn test_config_defaults_and_presets() {
@@ -22,10 +25,12 @@ fn test_config_defaults_and_presets() {
 
 #[test]
 fn test_config_json_serialization_roundtrip() {
-    let mut cfg = AppConfig::default();
-    cfg.sidebar_width = 520;
-    cfg.width_preset = WindowWidthPreset::UltraWide;
-    cfg.sort_processes_by = ProcessSortBy::Disk;
+    let cfg = AppConfig {
+        sidebar_width: 520,
+        width_preset: WindowWidthPreset::UltraWide,
+        sort_processes_by: ProcessSortBy::Disk,
+        ..Default::default()
+    };
 
     let json_str = serde_json::to_string_pretty(&cfg).expect("Serialization failed");
     assert!(json_str.contains("UltraWide"));
@@ -61,7 +66,7 @@ fn test_format_bytes_and_speeds() {
 
 #[test]
 fn test_process_sorting_logic() {
-    let mut procs = vec![
+    let mut procs = [
         ProcessInfo {
             name: "chrome".to_string(),
             cpu_usage: 12.5,
@@ -96,11 +101,11 @@ fn test_process_sorting_logic() {
     assert_eq!(procs[0].name, "code"); // 28.0%
 
     // Sort by Memory
-    procs.sort_by(|a, b| b.memory_bytes.cmp(&a.memory_bytes));
+    procs.sort_by_key(|a| std::cmp::Reverse(a.memory_bytes));
     assert_eq!(procs[0].name, "rustc"); // 1200 MB
 
     // Sort by Disk I/O
-    procs.sort_by(|a, b| b.disk_total_bytes_sec.cmp(&a.disk_total_bytes_sec));
+    procs.sort_by_key(|a| std::cmp::Reverse(a.disk_total_bytes_sec));
     assert_eq!(procs[0].name, "rustc"); // 15 MB/s
 }
 
@@ -156,7 +161,7 @@ fn test_drive_media_types_and_wsl_detection() {
 
 #[test]
 fn test_network_adapters_traffic_ranking() {
-    let mut adapters = vec![
+    let mut adapters = [
         NetworkAdapterInfo {
             name: "Bluetooth Device".to_string(),
             ip: "Disconnected".to_string(),
@@ -170,7 +175,7 @@ fn test_network_adapters_traffic_ranking() {
             name: "Wi-Fi".to_string(),
             ip: "192.168.29.230".to_string(),
             download_bytes_sec: 1024 * 1024 * 3, // 3 MB/s
-            upload_bytes_sec: 1024 * 512,      // 512 KB/s
+            upload_bytes_sec: 1024 * 512,        // 512 KB/s
             total_received: 1024 * 1024 * 1024 * 10,
             total_transmitted: 1024 * 1024 * 1024 * 2,
             is_up: true,
@@ -189,11 +194,12 @@ fn test_network_adapters_traffic_ranking() {
     adapters.sort_by(|a, b| {
         let traffic_b = b.download_bytes_sec + b.upload_bytes_sec;
         let traffic_a = a.download_bytes_sec + a.upload_bytes_sec;
-        traffic_b.cmp(&traffic_a).then_with(|| b.is_up.cmp(&a.is_up))
+        traffic_b
+            .cmp(&traffic_a)
+            .then_with(|| b.is_up.cmp(&a.is_up))
     });
 
     assert_eq!(adapters[0].name, "Wi-Fi");
     assert_eq!(adapters[1].name, "vEthernet (WSL)");
     assert_eq!(adapters[2].name, "Bluetooth Device");
 }
-

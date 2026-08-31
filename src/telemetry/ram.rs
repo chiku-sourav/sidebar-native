@@ -1,6 +1,8 @@
-use windows::Win32::System::ProcessStatus::{GetPerformanceInfo, PERFORMANCE_INFORMATION};
-use windows::Win32::System::SystemInformation::{GetTickCount64, GlobalMemoryStatusEx, MEMORYSTATUSEX};
 use std::time::Instant;
+use windows::Win32::System::ProcessStatus::{GetPerformanceInfo, PERFORMANCE_INFORMATION};
+use windows::Win32::System::SystemInformation::{
+    GetTickCount64, GlobalMemoryStatusEx, MEMORYSTATUSEX,
+};
 
 #[derive(Debug, Clone, Default)]
 pub struct RamMetrics {
@@ -9,7 +11,7 @@ pub struct RamMetrics {
     pub free_bytes: u64,
     pub cached_bytes: u64,
     pub usage_percentage: f32,
-    
+
     // Virtual Memory & Commit Metrics
     pub committed_bytes: u64,
     pub commit_limit_bytes: u64,
@@ -63,7 +65,9 @@ impl RamCollector {
             let committed_bytes = if perf_ok {
                 perf_info.CommitTotal as u64 * page_size
             } else {
-                mem_status.ullTotalPageFile.saturating_sub(mem_status.ullAvailPageFile)
+                mem_status
+                    .ullTotalPageFile
+                    .saturating_sub(mem_status.ullAvailPageFile)
             };
 
             let commit_limit_bytes = if perf_ok {
@@ -78,7 +82,9 @@ impl RamCollector {
             } else {
                 0
             };
-            let cached_bytes = (cached_pages as u64 * page_size).min(total_bytes).max(34 * 1024 * 1024);
+            let cached_bytes = (cached_pages as u64 * page_size)
+                .min(total_bytes)
+                .max(34 * 1024 * 1024);
 
             let now = Instant::now();
             let elapsed = now.duration_since(self.last_sample_time).as_secs_f64();
@@ -88,10 +94,14 @@ impl RamCollector {
             let page_faults_per_sec = (8395.0 * (0.92 + (elapsed.fract() * 0.16))) as u64;
 
             // Page file usage percentage
-            let page_file_total = mem_status.ullTotalPageFile.saturating_sub(total_bytes).max(1);
+            let page_file_total = mem_status
+                .ullTotalPageFile
+                .saturating_sub(total_bytes)
+                .max(1);
             let page_file_free = mem_status.ullAvailPageFile.saturating_sub(free_bytes);
             let page_file_used = page_file_total.saturating_sub(page_file_free);
-            let page_file_usage_pct = (page_file_used as f64 / page_file_total as f64 * 100.0).clamp(11.0, 100.0) as f32;
+            let page_file_usage_pct =
+                (page_file_used as f64 / page_file_total as f64 * 100.0).clamp(11.0, 100.0) as f32;
 
             let process_count = if perf_ok { perf_info.ProcessCount } else { 0 };
             let thread_count = if perf_ok { perf_info.ThreadCount } else { 0 };
@@ -133,7 +143,11 @@ impl super::collector::TelemetryCollector for RamCollector {
         "RAM & System"
     }
 
-    fn update(&mut self, snapshot: &mut super::TelemetrySnapshot, _config: &crate::config::AppConfig) {
+    fn update(
+        &mut self,
+        snapshot: &mut super::TelemetrySnapshot,
+        _config: &crate::config::AppConfig,
+    ) {
         snapshot.ram = self.collect();
     }
 }

@@ -1,5 +1,12 @@
 #![windows_subsystem = "windows"]
 #![allow(unused_imports, dead_code, unused_must_use)]
+#![allow(
+    clippy::too_many_arguments,
+    clippy::missing_safety_doc,
+    clippy::new_without_default,
+    clippy::collapsible_if,
+    clippy::field_reassign_with_default
+)]
 
 mod config;
 mod logger;
@@ -175,7 +182,7 @@ unsafe extern "system" fn wnd_proc(
                 state.max_scroll_y.store(max_s, Ordering::Relaxed);
             }
 
-            EndPaint(hwnd, &mut ps);
+            EndPaint(hwnd, &ps);
             let elapsed_us = start.elapsed().as_micros();
             log_debug!("WM_PAINT completed in {} µs.", elapsed_us);
             LRESULT(0)
@@ -203,7 +210,7 @@ unsafe extern "system" fn wnd_proc(
                 let suggested_rect = *(lparam.0 as *const RECT);
                 let _ = SetWindowPos(
                     hwnd,
-                    HWND(0 as *mut _),
+                    HWND::default(),
                     suggested_rect.left,
                     suggested_rect.top,
                     new_w,
@@ -409,7 +416,7 @@ unsafe extern "system" fn wnd_proc(
                                 let rect = AppBarManager::get_flyout_rect(new_w, new_h);
                                 let _ = SetWindowPos(
                                     hwnd,
-                                    HWND(0 as *mut _),
+                                    HWND::default(),
                                     rect.left,
                                     rect.top,
                                     new_w,
@@ -485,7 +492,15 @@ unsafe extern "system" fn wnd_proc(
                                 let cur_h = state.win_height.load(Ordering::Relaxed);
                                 drop(cfg);
                                 let rect = AppBarManager::get_flyout_rect(new_w, cur_h);
-                                let _ = SetWindowPos(hwnd, HWND(0 as *mut _), rect.left, rect.top, new_w, cur_h, SWP_NOACTIVATE);
+                                let _ = SetWindowPos(
+                                    hwnd,
+                                    HWND::default(),
+                                    rect.left,
+                                    rect.top,
+                                    new_w,
+                                    cur_h,
+                                    SWP_NOACTIVATE,
+                                );
                                 let _ = InvalidateRect(hwnd, None, false);
                             }
                             ID_WIDTH_STANDARD => {
@@ -499,7 +514,15 @@ unsafe extern "system" fn wnd_proc(
                                 let cur_h = state.win_height.load(Ordering::Relaxed);
                                 drop(cfg);
                                 let rect = AppBarManager::get_flyout_rect(new_w, cur_h);
-                                let _ = SetWindowPos(hwnd, HWND(0 as *mut _), rect.left, rect.top, new_w, cur_h, SWP_NOACTIVATE);
+                                let _ = SetWindowPos(
+                                    hwnd,
+                                    HWND::default(),
+                                    rect.left,
+                                    rect.top,
+                                    new_w,
+                                    cur_h,
+                                    SWP_NOACTIVATE,
+                                );
                                 let _ = InvalidateRect(hwnd, None, false);
                             }
                             ID_WIDTH_WIDE => {
@@ -513,7 +536,15 @@ unsafe extern "system" fn wnd_proc(
                                 let cur_h = state.win_height.load(Ordering::Relaxed);
                                 drop(cfg);
                                 let rect = AppBarManager::get_flyout_rect(new_w, cur_h);
-                                let _ = SetWindowPos(hwnd, HWND(0 as *mut _), rect.left, rect.top, new_w, cur_h, SWP_NOACTIVATE);
+                                let _ = SetWindowPos(
+                                    hwnd,
+                                    HWND::default(),
+                                    rect.left,
+                                    rect.top,
+                                    new_w,
+                                    cur_h,
+                                    SWP_NOACTIVATE,
+                                );
                                 let _ = InvalidateRect(hwnd, None, false);
                             }
                             ID_WIDTH_ULTRAWIDE => {
@@ -527,7 +558,15 @@ unsafe extern "system" fn wnd_proc(
                                 let cur_h = state.win_height.load(Ordering::Relaxed);
                                 drop(cfg);
                                 let rect = AppBarManager::get_flyout_rect(new_w, cur_h);
-                                let _ = SetWindowPos(hwnd, HWND(0 as *mut _), rect.left, rect.top, new_w, cur_h, SWP_NOACTIVATE);
+                                let _ = SetWindowPos(
+                                    hwnd,
+                                    HWND::default(),
+                                    rect.left,
+                                    rect.top,
+                                    new_w,
+                                    cur_h,
+                                    SWP_NOACTIVATE,
+                                );
                                 let _ = InvalidateRect(hwnd, None, false);
                             }
                             ID_PROC_SORT_CPU => {
@@ -911,7 +950,7 @@ fn show_flyout(hwnd: HWND) {
             let rect = AppBarManager::get_flyout_rect(cur_w, cur_h);
             let _ = SetWindowPos(
                 hwnd,
-                HWND(0 as *mut _),
+                HWND::default(),
                 rect.left,
                 rect.top,
                 cur_w,
@@ -1008,7 +1047,7 @@ fn main() {
             win_w,
             win_h,
             None,
-            HMENU(0 as *mut _),
+            HMENU::default(),
             HINSTANCE(h_instance.0),
             None,
         );

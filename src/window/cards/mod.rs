@@ -11,10 +11,10 @@ pub mod storage;
 pub mod system;
 pub mod virtual_memory;
 
-use windows::Win32::Graphics::Gdi::HDC;
+use super::context::RenderContext;
 use crate::config::AppConfig;
 use crate::telemetry::TelemetrySnapshot;
-use super::context::RenderContext;
+use windows::Win32::Graphics::Gdi::HDC;
 
 /// Single-responsibility contract for UI card components following SOLID principles (SRP, OCP, LSP, DIP).
 pub trait CardRenderer: Send + Sync {

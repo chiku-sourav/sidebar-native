@@ -1,6 +1,6 @@
+use crate::config::{AppConfig, ProcessSortBy};
 use std::collections::HashMap;
 use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, RefreshKind, System};
-use crate::config::{AppConfig, ProcessSortBy};
 
 #[derive(Debug, Clone, Default)]
 pub struct ProcessInfo {
@@ -33,7 +33,11 @@ impl ProcessCollector {
         Self { sys }
     }
 
-    pub fn collect_top_processes(&mut self, limit: usize, sort_by: ProcessSortBy) -> Vec<ProcessInfo> {
+    pub fn collect_top_processes(
+        &mut self,
+        limit: usize,
+        sort_by: ProcessSortBy,
+    ) -> Vec<ProcessInfo> {
         self.sys.refresh_processes_specifics(
             ProcessesToUpdate::All,
             true,
@@ -52,7 +56,7 @@ impl ProcessCollector {
 
         let mut aggregated: HashMap<String, AggregatedProcess> = HashMap::new();
 
-        for (_pid, process) in self.sys.processes() {
+        for process in self.sys.processes().values() {
             let name = process.name().to_string_lossy();
             let clean_name = name.trim_end_matches(".exe").to_string();
             let memory = process.memory();
@@ -76,13 +80,19 @@ impl ProcessCollector {
 
         match sort_by {
             ProcessSortBy::Cpu => {
-                list.sort_by(|a, b| b.1.cpu_usage.partial_cmp(&a.1.cpu_usage).unwrap_or(std::cmp::Ordering::Equal));
+                list.sort_by(|a, b| {
+                    b.1.cpu_usage
+                        .partial_cmp(&a.1.cpu_usage)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
             }
             ProcessSortBy::Memory => {
-                list.sort_by(|a, b| b.1.memory_bytes.cmp(&a.1.memory_bytes));
+                list.sort_by_key(|a| std::cmp::Reverse(a.1.memory_bytes));
             }
             ProcessSortBy::Disk => {
-                list.sort_by(|a, b| (b.1.disk_read + b.1.disk_write).cmp(&(a.1.disk_read + a.1.disk_write)));
+                list.sort_by(|a, b| {
+                    (b.1.disk_read + b.1.disk_write).cmp(&(a.1.disk_read + a.1.disk_write))
+                });
             }
         }
 

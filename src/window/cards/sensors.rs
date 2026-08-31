@@ -24,7 +24,9 @@ impl CardRenderer for SensorsCard {
 
     fn calculate_height(&self, snapshot: &TelemetrySnapshot, config: &AppConfig) -> i32 {
         let scale = config.font_size.scale();
-        let sensors: Vec<_> = snapshot.all_sensors.iter()
+        let sensors: Vec<_> = snapshot
+            .all_sensors
+            .iter()
             .filter(|s| s.is_active || config.show_disabled_hardware)
             .collect();
 
@@ -54,7 +56,9 @@ impl CardRenderer for SensorsCard {
             SetTextColor(hdc, ctx.pal.text_muted);
             ctx.draw_text(hdc, x + 14, inside_y, "HARDWARE & SENSORS EXPLORER");
 
-            let sensors: Vec<_> = snapshot.all_sensors.iter()
+            let sensors: Vec<_> = snapshot
+                .all_sensors
+                .iter()
                 .filter(|s| s.is_active || config.show_disabled_hardware)
                 .collect();
 
@@ -65,7 +69,10 @@ impl CardRenderer for SensorsCard {
             SelectObject(hdc, ctx.hfont_caption);
             SetTextColor(hdc, ctx.pal.text_muted);
             let summary_text = if config.show_disabled_hardware && inactive_count > 0 {
-                format!("{} Active Sensors • {} Disabled / Standby", active_count, inactive_count)
+                format!(
+                    "{} Active Sensors • {} Disabled / Standby",
+                    active_count, inactive_count
+                )
             } else {
                 format!("{} Monitored Sensors Active", active_count)
             };
@@ -100,7 +107,11 @@ impl CardRenderer for SensorsCard {
                         w - 40,
                         &sensor.name,
                         &sensor.value,
-                        if sensor.is_active { ctx.pal.text_primary } else { ctx.pal.text_muted },
+                        if sensor.is_active {
+                            ctx.pal.text_primary
+                        } else {
+                            ctx.pal.text_muted
+                        },
                         val_color,
                     );
 

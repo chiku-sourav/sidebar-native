@@ -9,12 +9,12 @@ use windows::Win32::Storage::FileSystem::{
     CreateFileW, GetDiskFreeSpaceExW, GetLogicalDrives, FILE_FLAGS_AND_ATTRIBUTES, FILE_SHARE_READ,
     FILE_SHARE_WRITE, OPEN_EXISTING,
 };
-use windows::Win32::System::IO::DeviceIoControl;
 use windows::Win32::System::Ioctl::{
-    IOCTL_DISK_GET_DRIVE_GEOMETRY_EX, IOCTL_STORAGE_QUERY_PROPERTY,
     PropertyStandardQuery, StorageAdapterProperty, StorageDeviceProperty,
-    StorageDeviceSeekPenaltyProperty, STORAGE_PROPERTY_QUERY,
+    StorageDeviceSeekPenaltyProperty, IOCTL_DISK_GET_DRIVE_GEOMETRY_EX,
+    IOCTL_STORAGE_QUERY_PROPERTY, STORAGE_PROPERTY_QUERY,
 };
+use windows::Win32::System::IO::DeviceIoControl;
 
 const IOCTL_DISK_PERFORMANCE_CODE: u32 = 0x00070020;
 
@@ -87,7 +87,10 @@ impl StorageCollector {
         let mut total_write_sec = 0u64;
 
         let now = Instant::now();
-        let elapsed = now.duration_since(self.last_sample_time).as_secs_f64().max(0.1);
+        let elapsed = now
+            .duration_since(self.last_sample_time)
+            .as_secs_f64()
+            .max(0.1);
         self.last_sample_time = now;
 
         // 1. Enumerate Windows Logical Drives (C:, D:, etc.)
@@ -108,15 +111,24 @@ impl StorageCollector {
                         Some(&mut free_bytes_avail),
                         Some(&mut total_bytes),
                         Some(&mut total_free_bytes),
-                    ).is_ok() && total_bytes > 0 {
+                    )
+                    .is_ok()
+                        && total_bytes > 0
+                    {
                         let used_bytes = total_bytes.saturating_sub(total_free_bytes);
-                        let usage_percentage = (used_bytes as f64 / total_bytes as f64 * 100.0) as f32;
+                        let usage_percentage =
+                            (used_bytes as f64 / total_bytes as f64 * 100.0) as f32;
 
                         // Match with physical disk meta
                         let meta = if drive_letter == 'C' {
-                            self.physical_cache.iter().find(|p| p.bus_type.contains("NVMe")).or_else(|| self.physical_cache.first())
+                            self.physical_cache
+                                .iter()
+                                .find(|p| p.bus_type.contains("NVMe"))
+                                .or_else(|| self.physical_cache.first())
                         } else {
-                            self.physical_cache.get(i as usize).or_else(|| self.physical_cache.last())
+                            self.physical_cache
+                                .get(i as usize)
+                                .or_else(|| self.physical_cache.last())
                         };
 
                         let (drive_type, model_name) = if let Some(m) = meta {
@@ -237,7 +249,7 @@ fn query_all_physical_disks() -> Vec<PhysicalDiskMeta> {
                 None,
                 OPEN_EXISTING,
                 FILE_FLAGS_AND_ATTRIBUTES(0),
-                HANDLE(0 as *mut _),
+                HANDLE::default(),
             );
 
             if let Ok(h) = handle {
@@ -268,7 +280,10 @@ fn query_all_physical_disks() -> Vec<PhysicalDiskMeta> {
                         out_buf.len() as u32,
                         Some(&mut bytes_returned),
                         None,
-                    ).is_ok() && bytes_returned >= 32 {
+                    )
+                    .is_ok()
+                        && bytes_returned >= 32
+                    {
                         let bus_type_val = out_buf[28]; // BusType enum offset
                         meta.bus_type = match bus_type_val {
                             17 => "NVMe".to_string(),
@@ -282,13 +297,20 @@ fn query_all_physical_disks() -> Vec<PhysicalDiskMeta> {
                             _ => "SATA".to_string(),
                         };
 
-                        let prod_offset = u32::from_ne_bytes([out_buf[16], out_buf[17], out_buf[18], out_buf[19]]) as usize;
+                        let prod_offset = u32::from_ne_bytes([
+                            out_buf[16],
+                            out_buf[17],
+                            out_buf[18],
+                            out_buf[19],
+                        ]) as usize;
                         if prod_offset > 0 && prod_offset < out_buf.len() {
                             let mut end = prod_offset;
                             while end < out_buf.len() && out_buf[end] != 0 {
                                 end += 1;
                             }
-                            let model_str = String::from_utf8_lossy(&out_buf[prod_offset..end]).trim().to_string();
+                            let model_str = String::from_utf8_lossy(&out_buf[prod_offset..end])
+                                .trim()
+                                .to_string();
                             if !model_str.is_empty() {
                                 meta.model = model_str;
                             }
@@ -311,7 +333,10 @@ fn query_all_physical_disks() -> Vec<PhysicalDiskMeta> {
                         seek_buf.len() as u32,
                         Some(&mut bytes_returned),
                         None,
-                    ).is_ok() && bytes_returned >= 5 {
+                    )
+                    .is_ok()
+                        && bytes_returned >= 5
+                    {
                         let incurs_penalty = seek_buf[4] != 0;
                         meta.is_ssd = !incurs_penalty || meta.bus_type.contains("NVMe");
                     } else if meta.bus_type.contains("NVMe") {
@@ -329,10 +354,19 @@ fn query_all_physical_disks() -> Vec<PhysicalDiskMeta> {
                         geom_buf.len() as u32,
                         Some(&mut bytes_returned),
                         None,
-                    ).is_ok() && bytes_returned >= 32 {
+                    )
+                    .is_ok()
+                        && bytes_returned >= 32
+                    {
                         let disk_size = u64::from_ne_bytes([
-                            geom_buf[24], geom_buf[25], geom_buf[26], geom_buf[27],
-                            geom_buf[28], geom_buf[29], geom_buf[30], geom_buf[31],
+                            geom_buf[24],
+                            geom_buf[25],
+                            geom_buf[26],
+                            geom_buf[27],
+                            geom_buf[28],
+                            geom_buf[29],
+                            geom_buf[30],
+                            geom_buf[31],
                         ]);
                         if disk_size > 0 {
                             meta.size_bytes = disk_size;
@@ -354,7 +388,11 @@ impl super::collector::TelemetryCollector for StorageCollector {
         "Storage"
     }
 
-    fn update(&mut self, snapshot: &mut super::TelemetrySnapshot, _config: &crate::config::AppConfig) {
+    fn update(
+        &mut self,
+        snapshot: &mut super::TelemetrySnapshot,
+        _config: &crate::config::AppConfig,
+    ) {
         snapshot.storage = self.collect();
     }
 }

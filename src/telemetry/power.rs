@@ -54,7 +54,11 @@ impl super::collector::TelemetryCollector for PowerCollector {
         "Battery"
     }
 
-    fn update(&mut self, snapshot: &mut super::TelemetrySnapshot, _config: &crate::config::AppConfig) {
+    fn update(
+        &mut self,
+        snapshot: &mut super::TelemetrySnapshot,
+        _config: &crate::config::AppConfig,
+    ) {
         snapshot.battery = self.collect();
     }
 }

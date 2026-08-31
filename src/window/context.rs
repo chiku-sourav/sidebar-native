@@ -285,14 +285,19 @@ impl RenderContext {
         SelectObject(hdc, self.hfont_value);
         SetTextColor(hdc, val_color);
         let mut val_truncated = value.to_string();
-        let mut final_val_wstr = format!("{}\0", val_truncated).encode_utf16().collect::<Vec<u16>>();
+        let mut final_val_wstr = format!("{}\0", val_truncated)
+            .encode_utf16()
+            .collect::<Vec<u16>>();
         let mut final_val_size = val_size;
 
         while final_val_size.cx > max_val_px && val_truncated.len() > 3 {
             val_truncated.pop();
             let test_str = format!("{}...", val_truncated.trim_end());
-            let test_wstr = format!("{}\0", test_str).encode_utf16().collect::<Vec<u16>>();
-            let _ = GetTextExtentPoint32W(hdc, &test_wstr[..test_wstr.len() - 1], &mut final_val_size);
+            let test_wstr = format!("{}\0", test_str)
+                .encode_utf16()
+                .collect::<Vec<u16>>();
+            let _ =
+                GetTextExtentPoint32W(hdc, &test_wstr[..test_wstr.len() - 1], &mut final_val_size);
             if final_val_size.cx <= max_val_px {
                 final_val_wstr = test_wstr;
                 break;
@@ -307,14 +312,19 @@ impl RenderContext {
         SetTextColor(hdc, key_color);
         let actual_max_key_px = (x_val - x_left - gap).max(20);
         let mut key_truncated = key.to_string();
-        let mut final_key_wstr = format!("{}\0", key_truncated).encode_utf16().collect::<Vec<u16>>();
+        let mut final_key_wstr = format!("{}\0", key_truncated)
+            .encode_utf16()
+            .collect::<Vec<u16>>();
         let mut final_key_size = key_size;
 
         while final_key_size.cx > actual_max_key_px && key_truncated.len() > 3 {
             key_truncated.pop();
             let test_str = format!("{}...", key_truncated.trim_end());
-            let test_wstr = format!("{}\0", test_str).encode_utf16().collect::<Vec<u16>>();
-            let _ = GetTextExtentPoint32W(hdc, &test_wstr[..test_wstr.len() - 1], &mut final_key_size);
+            let test_wstr = format!("{}\0", test_str)
+                .encode_utf16()
+                .collect::<Vec<u16>>();
+            let _ =
+                GetTextExtentPoint32W(hdc, &test_wstr[..test_wstr.len() - 1], &mut final_key_size);
             if final_key_size.cx <= actual_max_key_px {
                 final_key_wstr = test_wstr;
                 break;
@@ -327,7 +337,13 @@ impl RenderContext {
         TextOutW(hdc, x_val, y, &final_val_wstr[..final_val_wstr.len() - 1]);
     }
 
-    pub unsafe fn wrap_text(&self, hdc: HDC, font: HFONT, text: &str, max_width_px: i32) -> Vec<String> {
+    pub unsafe fn wrap_text(
+        &self,
+        hdc: HDC,
+        font: HFONT,
+        text: &str,
+        max_width_px: i32,
+    ) -> Vec<String> {
         let trimmed = text.trim();
         if trimmed.is_empty() || max_width_px <= 20 {
             return vec![trimmed.to_string()];
@@ -336,7 +352,9 @@ impl RenderContext {
         SelectObject(hdc, font);
 
         // Check if entire text fits in one line first
-        let full_wstr = format!("{}\0", trimmed).encode_utf16().collect::<Vec<u16>>();
+        let full_wstr = format!("{}\0", trimmed)
+            .encode_utf16()
+            .collect::<Vec<u16>>();
         let mut full_sz = SIZE::default();
         let _ = GetTextExtentPoint32W(hdc, &full_wstr[..full_wstr.len() - 1], &mut full_sz);
         if full_sz.cx <= max_width_px {
@@ -358,7 +376,9 @@ impl RenderContext {
                 format!("{} {}", current_line, word)
             };
 
-            let test_wstr = format!("{}\0", test_line).encode_utf16().collect::<Vec<u16>>();
+            let test_wstr = format!("{}\0", test_line)
+                .encode_utf16()
+                .collect::<Vec<u16>>();
             let mut test_sz = SIZE::default();
             let _ = GetTextExtentPoint32W(hdc, &test_wstr[..test_wstr.len() - 1], &mut test_sz);
 
