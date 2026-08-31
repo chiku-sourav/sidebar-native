@@ -1,10 +1,10 @@
 <div align="center">
 
-<img src="icon.jpg" alt="Sidebar Native Icon" width="120" height="120" style="border-radius: 24px;" />
+<img src="icon.jpg" alt="SideVitals Icon" width="120" height="120" style="border-radius: 24px;" />
 
-# ⚡ Sidebar Native
+# ⚡ SideVitals
 
-### *Ultra-Lightweight, Native Windows 11 Diagnostics Flyout in Pure Rust*
+### *Ultra-Lightweight, Native Windows 11 Diagnostics & Telemetry Flyout in Pure Rust*
 
 [![Rust](https://img.shields.io/badge/Rust-1.75%2B-orange.svg?style=for-the-badge&logo=rust)](https://www.rust-lang.org/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2011%20%7C%2010-0078D4.svg?style=for-the-badge&logo=windows11&logoColor=white)](https://microsoft.com/windows)
@@ -16,7 +16,7 @@
 
 <br/>
 
-**Sidebar Native** is a blazing-fast, resource-efficient system diagnostics monitor and flyout built exclusively for Windows 11 and Windows 10. Written in 100% pure Rust with direct Win32 and DWM APIs, it delivers real-time hardware telemetry with gorgeous Mica/Acrylic materials, fluid animations, and zero runtime bloat.
+**SideVitals** is a blazing-fast, resource-efficient system diagnostics monitor and flyout built exclusively for Windows 11 and Windows 10. Written in 100% pure Rust with direct Win32 and DWM APIs, it delivers real-time hardware telemetry with gorgeous Mica/Acrylic materials, fluid animations, and zero runtime bloat.
 
 [Key Features](#-key-features) • [Quick Start](#-quick-start) • [UI & Theming](#-ui-materials--theming) • [Controls & Shortcuts](#-controls--hotkeys) • [Configuration](#-configuration) • [Architecture](#-architecture)
 
@@ -26,13 +26,13 @@
 
 <br/>
 
-## 🎯 Why Sidebar Native?
+## 🎯 Why SideVitals?
 
 Traditional hardware monitors and desktop widgets rely heavily on web frameworks (Electron, WebView2, Chromium) or heavy runtimes, frequently consuming **150 MB – 400 MB of RAM** and noticeable background CPU cycles.
 
-**Sidebar Native** is engineered from the ground up for maximum efficiency and native Windows integration:
+**SideVitals** is engineered from the ground up for maximum efficiency and native Windows integration:
 
-| Metric | Sidebar Native (Rust) | Electron / Web-based Monitors |
+| Metric | SideVitals (Rust) | Electron / Web-based Monitors |
 | :--- | :--- | :--- |
 | **Idle Memory (RAM)** | **`< 8 MB`** | `180 MB – 450 MB` |
 | **Idle CPU Usage** | **`< 0.1%`** | `1.5% – 5.0%` |
@@ -107,7 +107,7 @@ Traditional hardware monitors and desktop widgets rely heavily on web frameworks
 
 ## 🎨 UI Materials & Theming
 
-Sidebar Native seamlessly blends into Windows 11 with authentic DWM materials and high-precision typography:
+SideVitals seamlessly blends into Windows 11 with authentic DWM materials and high-precision typography:
 
 ### 🪟 Windows 11 Materials
 * **Mica**: Subtle dynamic tinting matching desktop wallpaper.
@@ -205,7 +205,7 @@ Right-clicking the system tray icon opens a rich context menu with the following
 
 ## ⚙️ Configuration
 
-Sidebar Native stores its settings in a clean, human-readable JSON configuration file at:
+SideVitals stores its settings in a clean, human-readable JSON configuration file at:
 ```
 %APPDATA%\SidebarNative\config.json
 ```
@@ -320,7 +320,7 @@ You can open and edit this file anytime directly via the Tray Menu (**Right Clic
 
 ## 🏗️ Architecture
 
-Sidebar Native is designed around clean **SOLID software architecture**, ensuring thread safety, modularity, and zero garbage collection overhead:
+SideVitals is designed around clean **SOLID software architecture**, ensuring thread safety, modularity, and zero garbage collection overhead:
 
 ```mermaid
 flowchart TB
