@@ -203,3 +203,141 @@ fn test_network_adapters_traffic_ranking() {
     assert_eq!(adapters[1].name, "vEthernet (WSL)");
     assert_eq!(adapters[2].name, "Bluetooth Device");
 }
+
+#[test]
+fn test_battery_metrics_and_health_calculations() {
+    use sidebar_native::telemetry::power::{BatteryMetrics, SingleBatteryInfo};
+
+    let design_cap = 50000;
+    let full_cap = 45000;
+    let remaining_cap = 30000;
+
+    let health = (full_cap as f32 / design_cap as f32) * 100.0;
+    let wear = 100.0 - health;
+    let calc_pct = ((remaining_cap as f64 / full_cap as f64) * 100.0).round() as u8;
+
+    let battery = BatteryMetrics {
+        has_battery: true,
+        is_charging: false,
+        is_discharging: true,
+        is_ac_connected: false,
+        is_saver_active: false,
+        is_critical: false,
+        percentage: calc_pct,
+        life_time_seconds: Some(7200), // 2 hours
+        time_remaining_formatted: "2h 0m remaining".to_string(),
+        remaining_capacity_mwh: remaining_cap,
+        full_charge_capacity_mwh: full_cap,
+        designed_capacity_mwh: design_cap,
+        health_percent: Some(health),
+        wear_percent: Some(wear),
+        cycle_count: Some(150),
+        rate_watts: Some(-15.0),
+        voltage_volts: Some(11.8),
+        temperature_c: Some(29.0),
+        chemistry: "Lithium-Ion (Li-Ion)".to_string(),
+        device_name: "L19C3PF5".to_string(),
+        manufacturer: "SMP".to_string(),
+        serial_number: "12345".to_string(),
+        manufacture_date: Some("2023-05-10".to_string()),
+        power_state_description: "On Battery (Discharging)".to_string(),
+        batteries: vec![SingleBatteryInfo {
+            name: "L19C3PF5".to_string(),
+            manufacturer: "SMP".to_string(),
+            serial_number: "12345".to_string(),
+            chemistry: "Lithium-Ion (Li-Ion)".to_string(),
+            manufacture_date: Some("2023-05-10".to_string()),
+            designed_capacity_mwh: design_cap,
+            full_charge_capacity_mwh: full_cap,
+            current_capacity_mwh: remaining_cap,
+            health_percent: Some(health),
+            wear_percent: Some(wear),
+            cycle_count: Some(150),
+            voltage_volts: Some(11.8),
+            rate_watts: Some(-15.0),
+            temperature_c: Some(29.0),
+            is_charging: false,
+            is_discharging: true,
+            is_critical: false,
+        }],
+    };
+
+    assert!(battery.has_battery);
+    assert_eq!(battery.percentage, 67);
+    assert_eq!(battery.health_percent, Some(90.0));
+    assert_eq!(battery.wear_percent, Some(10.0));
+    assert_eq!(battery.cycle_count, Some(150));
+    assert_eq!(battery.device_name, "L19C3PF5");
+    assert_eq!(battery.chemistry, "Lithium-Ion (Li-Ion)");
+    assert_eq!(battery.voltage_volts, Some(11.8));
+    assert_eq!(battery.rate_watts, Some(-15.0));
+    assert_eq!(battery.time_remaining_formatted, "2h 0m remaining");
+}
+
+#[test]
+fn test_sensors_collector_with_battery() {
+    use sidebar_native::telemetry::power::BatteryMetrics;
+    use sidebar_native::telemetry::sensors::SensorsCollector;
+    use sidebar_native::telemetry::TelemetrySnapshot;
+
+    let mut snapshot = TelemetrySnapshot::default();
+    snapshot.battery = BatteryMetrics {
+        has_battery: true,
+        is_charging: true,
+        is_discharging: false,
+        is_ac_connected: true,
+        is_saver_active: false,
+        is_critical: false,
+        percentage: 85,
+        life_time_seconds: Some(1800),
+        time_remaining_formatted: "30m until full".to_string(),
+        remaining_capacity_mwh: 42500,
+        full_charge_capacity_mwh: 50000,
+        designed_capacity_mwh: 55000,
+        health_percent: Some(90.9),
+        wear_percent: Some(9.1),
+        cycle_count: Some(88),
+        rate_watts: Some(25.0),
+        voltage_volts: Some(12.5),
+        temperature_c: Some(31.0),
+        chemistry: "Lithium-Ion (Li-Ion)".to_string(),
+        device_name: "L20M3PC2".to_string(),
+        manufacturer: "SMP".to_string(),
+        serial_number: "4500".to_string(),
+        manufacture_date: None,
+        power_state_description: "Plugged in (Charging)".to_string(),
+        batteries: vec![],
+    };
+
+    let cfg = AppConfig::default();
+    let mut collector = SensorsCollector::new();
+    let sensors = collector.collect(&snapshot, &cfg);
+
+    let power_sensors: Vec<_> = sensors
+        .iter()
+        .filter(|s| s.category == "Power & Battery")
+        .collect();
+
+    assert!(!power_sensors.is_empty());
+    assert!(power_sensors
+        .iter()
+        .any(|s| s.name.contains("Charge Level") && s.value.contains("85%")));
+    assert!(power_sensors
+        .iter()
+        .any(|s| s.name.contains("Power Flow Rate") && s.value.contains("+25.00 W")));
+    assert!(power_sensors
+        .iter()
+        .any(|s| s.name.contains("Terminal Voltage") && s.value.contains("12.500 V")));
+    assert!(power_sensors
+        .iter()
+        .any(|s| s.name.contains("Energy Stored") && s.value.contains("42.5 Wh / 50.0 Wh")));
+    assert!(power_sensors
+        .iter()
+        .any(|s| s.name.contains("Health & Degradation") && s.value.contains("90.9%")));
+    assert!(power_sensors
+        .iter()
+        .any(|s| s.name.contains("Charge Cycle Count") && s.value.contains("88 Cycles")));
+    assert!(power_sensors
+        .iter()
+        .any(|s| s.name.contains("Cell Temperature") && s.value.contains("31 °C")));
+}

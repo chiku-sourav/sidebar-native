@@ -253,27 +253,108 @@ impl SensorsCollector {
         // 6. POWER & BATTERY SENSORS
         // ==========================================
         if snapshot.battery.has_battery {
+            let bat_name = if !snapshot.battery.device_name.is_empty() {
+                if !snapshot.battery.manufacturer.is_empty() {
+                    format!(
+                        "{} {}",
+                        snapshot.battery.manufacturer, snapshot.battery.device_name
+                    )
+                } else {
+                    snapshot.battery.device_name.clone()
+                }
+            } else {
+                "Main Battery".to_string()
+            };
+
             list.push(HardwareSensor {
                 category: "Power & Battery".to_string(),
-                name: "Main Lithium-Ion Battery".to_string(),
-                sensor_type: "Power".to_string(),
+                name: format!("{} Charge Level", bat_name),
+                sensor_type: "Charge".to_string(),
                 value: format!(
-                    "{:.0}% ({})",
-                    snapshot.battery.percentage,
-                    if snapshot.battery.is_charging {
-                        "Charging"
-                    } else {
-                        "On Battery"
-                    }
+                    "{}% ({})",
+                    snapshot.battery.percentage, snapshot.battery.power_state_description
                 ),
                 is_active: true,
             });
+
+            if let Some(rate) = snapshot.battery.rate_watts {
+                list.push(HardwareSensor {
+                    category: "Power & Battery".to_string(),
+                    name: "Battery Power Flow Rate".to_string(),
+                    sensor_type: "Power".to_string(),
+                    value: if rate > 0.0 {
+                        format!("+{:.2} W (Charging)", rate)
+                    } else if rate < 0.0 {
+                        format!("{:.2} W (Discharging)", rate)
+                    } else {
+                        "0.00 W (Idle)".to_string()
+                    },
+                    is_active: true,
+                });
+            }
+
+            if let Some(voltage) = snapshot.battery.voltage_volts {
+                list.push(HardwareSensor {
+                    category: "Power & Battery".to_string(),
+                    name: "Battery Terminal Voltage".to_string(),
+                    sensor_type: "Voltage".to_string(),
+                    value: format!("{:.3} V", voltage),
+                    is_active: true,
+                });
+            }
+
+            if snapshot.battery.full_charge_capacity_mwh > 0 {
+                let rem_wh = snapshot.battery.remaining_capacity_mwh as f32 / 1000.0;
+                let full_wh = snapshot.battery.full_charge_capacity_mwh as f32 / 1000.0;
+                list.push(HardwareSensor {
+                    category: "Power & Battery".to_string(),
+                    name: "Battery Energy Stored".to_string(),
+                    sensor_type: "Energy".to_string(),
+                    value: format!("{:.1} Wh / {:.1} Wh", rem_wh, full_wh),
+                    is_active: true,
+                });
+            }
+
+            if let Some(health) = snapshot.battery.health_percent {
+                let wear_str = snapshot
+                    .battery
+                    .wear_percent
+                    .map(|w| format!(" ({:.1}% Wear)", w))
+                    .unwrap_or_default();
+                list.push(HardwareSensor {
+                    category: "Power & Battery".to_string(),
+                    name: "Battery Health & Degradation".to_string(),
+                    sensor_type: "Health".to_string(),
+                    value: format!("{:.1}%{}", health, wear_str),
+                    is_active: true,
+                });
+            }
+
+            if let Some(cycles) = snapshot.battery.cycle_count {
+                list.push(HardwareSensor {
+                    category: "Power & Battery".to_string(),
+                    name: "Battery Charge Cycle Count".to_string(),
+                    sensor_type: "Cycles".to_string(),
+                    value: format!("{} Cycles", cycles),
+                    is_active: true,
+                });
+            }
+
+            if let Some(temp_c) = snapshot.battery.temperature_c {
+                list.push(HardwareSensor {
+                    category: "Power & Battery".to_string(),
+                    name: "Battery Cell Temperature".to_string(),
+                    sensor_type: "Temperature".to_string(),
+                    value: fmt_temp(temp_c),
+                    is_active: true,
+                });
+            }
         } else if config.show_disabled_hardware {
             list.push(HardwareSensor {
                 category: "Power & Battery".to_string(),
                 name: "ACPI Control Method Battery".to_string(),
                 sensor_type: "Power".to_string(),
-                value: "Not Installed".to_string(),
+                value: "Not Installed (AC Power)".to_string(),
                 is_active: false,
             });
         }
