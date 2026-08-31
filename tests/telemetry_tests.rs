@@ -2,6 +2,8 @@ use sidebar_native::config::{
     AppConfig, AppTheme, BackdropEffect, FontSize, ProcessSortBy, TemperatureUnit,
     WindowWidthPreset,
 };
+use sidebar_native::telemetry::process::EtwNetworkCollector;
+
 use sidebar_native::telemetry::network::NetworkAdapterInfo;
 use sidebar_native::telemetry::process::{format_bytes, format_speed, ProcessInfo};
 use sidebar_native::telemetry::storage::DriveInfo;
@@ -89,6 +91,7 @@ fn test_process_sorting_logic() {
             tcp_sockets: 24,
             udp_sockets: 4,
             active_sockets: 28,
+            ..Default::default()
         },
         ProcessInfo {
             name: "code".to_string(),
@@ -101,6 +104,7 @@ fn test_process_sorting_logic() {
             tcp_sockets: 2,
             udp_sockets: 0,
             active_sockets: 2,
+            ..Default::default()
         },
         ProcessInfo {
             name: "rustc".to_string(),
@@ -113,6 +117,7 @@ fn test_process_sorting_logic() {
             tcp_sockets: 0,
             udp_sockets: 0,
             active_sockets: 0,
+            ..Default::default()
         },
     ];
 
@@ -158,6 +163,7 @@ fn test_telemetry_snapshot_separate_process_lists() {
         tcp_sockets: 0,
         udp_sockets: 0,
         active_sockets: 0,
+        ..Default::default()
     });
     snapshot.top_ram_processes.push(ProcessInfo {
         name: "vmsrv".to_string(),
@@ -170,6 +176,7 @@ fn test_telemetry_snapshot_separate_process_lists() {
         tcp_sockets: 2,
         udp_sockets: 1,
         active_sockets: 3,
+        ..Default::default()
     });
     snapshot.top_disk_processes.push(ProcessInfo {
         name: "robocopy".to_string(),
@@ -182,6 +189,7 @@ fn test_telemetry_snapshot_separate_process_lists() {
         tcp_sockets: 0,
         udp_sockets: 0,
         active_sockets: 0,
+        ..Default::default()
     });
     snapshot.top_network_processes.push(ProcessInfo {
         name: "discord".to_string(),
@@ -194,6 +202,7 @@ fn test_telemetry_snapshot_separate_process_lists() {
         tcp_sockets: 18,
         udp_sockets: 6,
         active_sockets: 24,
+        ..Default::default()
     });
 
     assert_eq!(snapshot.top_cpu_processes[0].name, "ffmpeg");
@@ -202,7 +211,6 @@ fn test_telemetry_snapshot_separate_process_lists() {
     assert_eq!(snapshot.top_network_processes[0].name, "discord");
     assert_eq!(snapshot.top_network_processes[0].active_sockets, 24);
 }
-
 
 #[test]
 fn test_drive_media_types_and_wsl_detection() {
@@ -435,4 +443,119 @@ fn test_sensors_collector_with_battery() {
     assert!(power_sensors
         .iter()
         .any(|s| s.name.contains("Cell Temperature") && s.value.contains("31 °C")));
+}
+
+#[test]
+fn test_process_network_ranking_and_stats() {
+    let mut net_procs = vec![
+        ProcessInfo {
+            name: "idle_server".to_string(),
+            tcp_sockets: 5,
+            tcp_established: 0,
+            tcp_listening: 5,
+            udp_sockets: 0,
+            active_sockets: 5,
+            net_rx_bytes_sec: 0,
+            net_tx_bytes_sec: 0,
+            net_total_bytes_sec: 0,
+            disk_total_bytes_sec: 0,
+            cpu_usage: 0.1,
+            ..Default::default()
+        },
+        ProcessInfo {
+            name: "downloader".to_string(),
+            tcp_sockets: 8,
+            tcp_established: 8,
+            tcp_listening: 0,
+            udp_sockets: 0,
+            active_sockets: 8,
+            net_rx_bytes_sec: 1024 * 1024 * 5, // 5 MB/s
+            net_tx_bytes_sec: 1024 * 100,      // 100 KB/s
+            net_total_bytes_sec: 1024 * 1024 * 5 + 1024 * 100,
+            disk_total_bytes_sec: 1024 * 500,
+            cpu_usage: 5.0,
+            ..Default::default()
+        },
+        ProcessInfo {
+            name: "browser_tab".to_string(),
+            tcp_sockets: 12,
+            tcp_established: 4,
+            tcp_listening: 0,
+            udp_sockets: 2,
+            active_sockets: 14,
+            net_rx_bytes_sec: 0,
+            net_tx_bytes_sec: 0,
+            net_total_bytes_sec: 0,
+            disk_total_bytes_sec: 100,
+            cpu_usage: 1.0,
+            ..Default::default()
+        },
+    ];
+
+    net_procs.sort_by(|a, b| {
+        let a_net = a.net_total_bytes_sec;
+        let b_net = b.net_total_bytes_sec;
+        if a_net > 0 || b_net > 0 {
+            return b_net.cmp(&a_net);
+        }
+
+        if a.tcp_established != b.tcp_established {
+            return b.tcp_established.cmp(&a.tcp_established);
+        }
+
+        if a.active_sockets != b.active_sockets {
+            return b.active_sockets.cmp(&a.active_sockets);
+        }
+
+        b.cpu_usage
+            .partial_cmp(&a.cpu_usage)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    assert_eq!(net_procs[0].name, "downloader"); // Active throughput > 0
+    assert_eq!(net_procs[1].name, "browser_tab"); // 4 established connections
+    assert_eq!(net_procs[2].name, "idle_server"); // 0 established (listening only)
+}
+
+#[test]
+fn test_etw_collector_run() {
+    let mut collector = EtwNetworkCollector::new();
+    std::thread::sleep(std::time::Duration::from_millis(500));
+    let rates = collector.sample_and_drain();
+    println!("ETW rates count: {}", rates.len());
+    for (pid, (rx, tx)) in rates.iter().take(5) {
+        println!("PID {}: rx={}, tx={}", pid, rx, tx);
+    }
+}
+
+#[test]
+fn test_elevation_check() {
+    use windows::Win32::Foundation::{CloseHandle, HANDLE};
+    use windows::Win32::Security::{
+        GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY,
+    };
+    use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
+
+    unsafe {
+        let mut token = HANDLE::default();
+        let open_res = OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token);
+        println!("OpenProcessToken: {:?}", open_res);
+        if open_res.is_ok() {
+            let mut elevation = TOKEN_ELEVATION::default();
+            let mut return_length = 0u32;
+            let get_res = GetTokenInformation(
+                token,
+                TokenElevation,
+                Some(&mut elevation as *mut _ as *mut _),
+                std::mem::size_of::<TOKEN_ELEVATION>() as u32,
+                &mut return_length,
+            );
+            let _ = CloseHandle(token);
+            println!(
+                "GetTokenInformation: {:?}, is_elevated: {}",
+                get_res,
+                elevation.TokenIsElevated != 0
+            );
+        }
+    }
 }

@@ -79,6 +79,7 @@ pub enum ProcessSortBy {
     Cpu,
     Memory,
     Disk,
+    Network,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

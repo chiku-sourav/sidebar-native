@@ -64,7 +64,9 @@ impl CardRenderer for ProcessesCard {
             let active_net_count = snapshot
                 .top_network_processes
                 .iter()
-                .filter(|p| p.active_sockets > 0 || p.disk_total_bytes_sec > 0)
+                .filter(|p| {
+                    p.net_total_bytes_sec > 0 || p.active_sockets > 0 || p.disk_total_bytes_sec > 0
+                })
                 .count()
                 .min(limit);
             let count = if active_net_count > 0 {
@@ -261,22 +263,50 @@ impl CardRenderer for ProcessesCard {
                 let active_net: Vec<_> = snapshot
                     .top_network_processes
                     .iter()
-                    .filter(|p| p.active_sockets > 0 || p.disk_total_bytes_sec > 0)
+                    .filter(|p| {
+                        p.net_total_bytes_sec > 0
+                            || p.active_sockets > 0
+                            || p.disk_total_bytes_sec > 0
+                    })
                     .take(limit)
                     .collect();
 
                 if active_net.is_empty() {
                     SelectObject(hdc, ctx.hfont_caption);
                     SetTextColor(hdc, ctx.pal.text_muted);
-                    ctx.draw_text(hdc, x + 24, inside_y, "Idle (No active socket connections)");
+                    ctx.draw_text(
+                        hdc,
+                        x + 24,
+                        inside_y,
+                        "Idle (No active network connections)",
+                    );
                     inside_y += ctx.lh(21);
                 } else {
                     for proc in active_net {
-                        let socket_text = if proc.active_sockets > 0 {
-                            format!(
-                                "{} sockets ({} TCP / {} UDP)",
-                                proc.active_sockets, proc.tcp_sockets, proc.udp_sockets
-                            )
+                        let net_text = if proc.net_total_bytes_sec > 0 {
+                            let total_speed = format_speed(proc.net_total_bytes_sec);
+                            let rx_speed = format_speed(proc.net_rx_bytes_sec);
+                            let tx_speed = format_speed(proc.net_tx_bytes_sec);
+                            if proc.active_sockets > 0 {
+                                format!(
+                                    "{} (↓ {} • ↑ {}) • {} conn",
+                                    total_speed, rx_speed, tx_speed, proc.active_sockets
+                                )
+                            } else {
+                                format!("{} (↓ {} • ↑ {})", total_speed, rx_speed, tx_speed)
+                            }
+                        } else if proc.active_sockets > 0 {
+                            if proc.tcp_established > 0 {
+                                format!(
+                                    "{} sockets ({} estab / {} listen)",
+                                    proc.active_sockets, proc.tcp_established, proc.tcp_listening
+                                )
+                            } else {
+                                format!(
+                                    "{} sockets ({} TCP / {} UDP)",
+                                    proc.active_sockets, proc.tcp_sockets, proc.udp_sockets
+                                )
+                            }
                         } else {
                             "Active I/O".to_string()
                         };
@@ -287,7 +317,7 @@ impl CardRenderer for ProcessesCard {
                             inside_y,
                             w - 38,
                             &proc.name,
-                            &socket_text,
+                            &net_text,
                             ctx.pal.text_primary,
                             ctx.pal.accent_green,
                         );

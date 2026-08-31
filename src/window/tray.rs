@@ -112,6 +112,7 @@ pub const ID_WIDTH_ULTRAWIDE: u32 = 2904;
 pub const ID_PROC_SORT_CPU: u32 = 2911;
 pub const ID_PROC_SORT_RAM: u32 = 2912;
 pub const ID_PROC_SORT_DISK: u32 = 2913;
+pub const ID_PROC_SORT_NETWORK: u32 = 2914;
 
 // Process Category Visibility IDs
 pub const ID_TOGGLE_PROC_CPU: u32 = 2921;
@@ -515,6 +516,33 @@ impl SystemTray {
                 ID_TOGGLE_PROC_NETWORK as usize,
                 w!("Process List: Network Usage"),
             );
+            let _ = AppendMenuW(unit_menu, MF_SEPARATOR, 0, PCWSTR::null());
+            let sort_menu = CreatePopupMenu().unwrap_or_default();
+            let _ = AppendMenuW(
+                sort_menu,
+                check_flag(config.sort_processes_by == ProcessSortBy::Cpu),
+                ID_PROC_SORT_CPU as usize,
+                w!("Sort by CPU Usage"),
+            );
+            let _ = AppendMenuW(
+                sort_menu,
+                check_flag(config.sort_processes_by == ProcessSortBy::Memory),
+                ID_PROC_SORT_RAM as usize,
+                w!("Sort by Memory (RAM)"),
+            );
+            let _ = AppendMenuW(
+                sort_menu,
+                check_flag(config.sort_processes_by == ProcessSortBy::Disk),
+                ID_PROC_SORT_DISK as usize,
+                w!("Sort by Disk I/O"),
+            );
+            let _ = AppendMenuW(
+                sort_menu,
+                check_flag(config.sort_processes_by == ProcessSortBy::Network),
+                ID_PROC_SORT_NETWORK as usize,
+                w!("Sort by Network Usage"),
+            );
+            let _ = AppendMenuW(unit_menu, MF_POPUP, sort_menu.0 as usize, w!("Process Sort Order"));
             let _ = AppendMenuW(menu, MF_POPUP, unit_menu.0 as usize, w!("Units & Display"));
 
             // 8. Card Visibility & Monitors Submenu

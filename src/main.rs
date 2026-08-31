@@ -618,6 +618,13 @@ unsafe extern "system" fn wnd_proc(
                                 drop(cfg);
                                 let _ = InvalidateRect(hwnd, None, false);
                             }
+                            ID_PROC_SORT_NETWORK => {
+                                let mut cfg = state.config.lock().unwrap();
+                                cfg.sort_processes_by = ProcessSortBy::Network;
+                                let _ = cfg.save();
+                                drop(cfg);
+                                let _ = InvalidateRect(hwnd, None, false);
+                            }
                             ID_POLL_500MS => {
                                 let mut cfg = state.config.lock().unwrap();
                                 cfg.poll_interval_ms = 500;
