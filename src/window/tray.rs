@@ -98,6 +98,7 @@ pub const ID_AUTOPAUSE_TOGGLE: u32 = 2702;
 pub const ID_TOPMOST_TOGGLE: u32 = 2703;
 pub const ID_CLICKTHROUGH_TOGGLE: u32 = 2704;
 pub const ID_CAFFEINE_TOGGLE: u32 = 2705;
+pub const ID_START_MINIMIZED_TOGGLE: u32 = 2706;
 
 // Font Size Submenu IDs
 pub const ID_FONT_SMALL: u32 = 2801;
@@ -280,45 +281,6 @@ impl SystemTray {
             );
             let _ = AppendMenuW(menu, MF_POPUP, theme_menu.0 as usize, w!("Theme"));
 
-            // 2. Font Size & UI Scale Submenu
-            let font_menu = CreatePopupMenu().unwrap_or_default();
-            let _ = AppendMenuW(
-                font_menu,
-                check_flag(config.font_size == FontSize::Small),
-                ID_FONT_SMALL as usize,
-                w!("Small (100%)"),
-            );
-            let _ = AppendMenuW(
-                font_menu,
-                check_flag(config.font_size == FontSize::Medium),
-                ID_FONT_MEDIUM as usize,
-                w!("Medium (120%)"),
-            );
-            let _ = AppendMenuW(
-                font_menu,
-                check_flag(config.font_size == FontSize::Large),
-                ID_FONT_LARGE as usize,
-                w!("Large (145% - Default)"),
-            );
-            let _ = AppendMenuW(
-                font_menu,
-                check_flag(config.font_size == FontSize::ExtraLarge),
-                ID_FONT_XLARGE as usize,
-                w!("Extra Large (170%)"),
-            );
-            let _ = AppendMenuW(
-                font_menu,
-                check_flag(config.font_size == FontSize::Huge),
-                ID_FONT_HUGE as usize,
-                w!("Huge (200%)"),
-            );
-            let _ = AppendMenuW(
-                menu,
-                MF_POPUP,
-                font_menu.0 as usize,
-                w!("Font Size & Scale"),
-            );
-
             // 3. Materials / Backdrop Submenu
             let backdrop_menu = CreatePopupMenu().unwrap_or_default();
             let _ = AppendMenuW(
@@ -350,39 +312,6 @@ impl SystemTray {
                 MF_POPUP,
                 backdrop_menu.0 as usize,
                 w!("Backdrop Material"),
-            );
-
-            // 4. Window Width & Size Submenu
-            let width_menu = CreatePopupMenu().unwrap_or_default();
-            let _ = AppendMenuW(
-                width_menu,
-                check_flag(config.width_preset == WindowWidthPreset::Compact),
-                ID_WIDTH_COMPACT as usize,
-                w!("Compact (350px)"),
-            );
-            let _ = AppendMenuW(
-                width_menu,
-                check_flag(config.width_preset == WindowWidthPreset::Standard),
-                ID_WIDTH_STANDARD as usize,
-                w!("Standard (410px)"),
-            );
-            let _ = AppendMenuW(
-                width_menu,
-                check_flag(config.width_preset == WindowWidthPreset::Wide),
-                ID_WIDTH_WIDE as usize,
-                w!("Wide (490px - Full Hardware Names)"),
-            );
-            let _ = AppendMenuW(
-                width_menu,
-                check_flag(config.width_preset == WindowWidthPreset::UltraWide),
-                ID_WIDTH_ULTRAWIDE as usize,
-                w!("Ultra Wide (580px)"),
-            );
-            let _ = AppendMenuW(
-                menu,
-                MF_POPUP,
-                width_menu.0 as usize,
-                w!("Window Width & Size"),
             );
 
             // 5. Polling Interval Submenu
@@ -677,6 +606,12 @@ impl SystemTray {
             );
             let _ = AppendMenuW(
                 opt_menu,
+                check_flag(config.start_minimized),
+                ID_START_MINIMIZED_TOGGLE as usize,
+                w!("Start Minimized to Tray"),
+            );
+            let _ = AppendMenuW(
+                opt_menu,
                 check_flag(config.auto_pause_fullscreen),
                 ID_AUTOPAUSE_TOGGLE as usize,
                 w!("Auto-Pause on Fullscreen / Games"),
@@ -737,9 +672,7 @@ impl SystemTray {
             );
 
             let _ = DestroyMenu(theme_menu);
-            let _ = DestroyMenu(font_menu);
             let _ = DestroyMenu(backdrop_menu);
-            let _ = DestroyMenu(width_menu);
             let _ = DestroyMenu(poll_menu);
             let _ = DestroyMenu(clock_menu);
             let _ = DestroyMenu(unit_menu);

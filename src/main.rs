@@ -860,6 +860,11 @@ unsafe extern "system" fn wnd_proc(
                                 let _ = StartupManager::set_run_at_startup(cfg.run_at_startup);
                                 let _ = cfg.save();
                             }
+                            ID_START_MINIMIZED_TOGGLE => {
+                                let mut cfg = state.config.lock().unwrap();
+                                cfg.start_minimized = !cfg.start_minimized;
+                                let _ = cfg.save();
+                            }
                             ID_AUTOPAUSE_TOGGLE => {
                                 let mut cfg = state.config.lock().unwrap();
                                 cfg.auto_pause_fullscreen = !cfg.auto_pause_fullscreen;
@@ -1147,7 +1152,7 @@ fn main() {
 
         let renderer = UIRenderer::new(init_dpi, config.font_size.scale());
 
-        let start_visible = !config.initially_hidden;
+        let start_visible = !config.start_minimized;
 
         let state = AppState {
             config: Mutex::new(config.clone()),

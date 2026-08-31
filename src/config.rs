@@ -99,7 +99,8 @@ pub struct AppConfig {
     pub click_through: bool,
     pub show_tray_icon: bool,
     pub run_at_startup: bool,
-    pub initially_hidden: bool,
+    #[serde(default, alias = "initially_hidden")]
+    pub start_minimized: bool,
     pub auto_pause_fullscreen: bool,
 
     // Styling & Theming
@@ -171,7 +172,7 @@ impl Default for AppConfig {
             click_through: false,
             show_tray_icon: true,
             run_at_startup: false,
-            initially_hidden: false,
+            start_minimized: false,
             auto_pause_fullscreen: false,
 
             theme: AppTheme::Auto,
