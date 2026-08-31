@@ -8,9 +8,11 @@
 
 [![Rust](https://img.shields.io/badge/Rust-1.75%2B-orange.svg?style=for-the-badge&logo=rust)](https://www.rust-lang.org/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2011%20%7C%2010-0078D4.svg?style=for-the-badge&logo=windows11&logoColor=white)](https://microsoft.com/windows)
+[![Build & Release](https://img.shields.io/github/actions/workflow/status/chiku-sourav/sidebar-native/build-release.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=Build)](https://github.com/chiku-sourav/sidebar-native/actions/workflows/build-release.yml)
+[![Lint](https://img.shields.io/github/actions/workflow/status/chiku-sourav/sidebar-native/lint.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=Lint)](https://github.com/chiku-sourav/sidebar-native/actions/workflows/lint.yml)
 [![Memory](https://img.shields.io/badge/RAM_Usage-%3C_8_MB-success.svg?style=for-the-badge&logo=ram&logoColor=white)]()
 [![CPU](https://img.shields.io/badge/CPU_Usage-%3C_0.1%25-brightgreen.svg?style=for-the-badge)]()
-[![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
+[![License](https://img.shields.io/badge/License-GPL--3.0-blue.svg?style=for-the-badge)](LICENSE)
 
 <br/>
 
@@ -141,7 +143,7 @@ Sidebar Native seamlessly blends into Windows 11 with authentic DWM materials an
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-username/sidebar-native.git
+   git clone https://github.com/chiku-sourav/sidebar-native.git
    cd sidebar-native
    ```
 
@@ -216,14 +218,14 @@ You can open and edit this file anytime directly via the Tray Menu (**Right Clic
 {
   "poll_interval_ms": 1000,
   "dock_edge": "Right",
-  "sidebar_width": 490,
+  "sidebar_width": 480,
   "width_preset": "Wide",
   "stay_on_top": true,
   "click_through": false,
   "show_tray_icon": true,
   "run_at_startup": false,
   "initially_hidden": false,
-  "auto_pause_fullscreen": true,
+  "auto_pause_fullscreen": false,
   "caffeine_enabled": false,
   "theme": "Auto",
   "backdrop": "Mica",
@@ -268,7 +270,7 @@ You can open and edit this file anytime directly via the Tray Menu (**Right Clic
 | :--- | :--- | :--- | :--- |
 | `poll_interval_ms` | `u64` | `1000` | Telemetry refresh interval in milliseconds (min: 500). |
 | `dock_edge` | `"Left"` / `"Right"` | `"Right"` | Which screen edge the flyout docks to by default. |
-| `sidebar_width` | `i32` | `490` | Width of the flyout window in logical pixels. |
+| `sidebar_width` | `i32` | `480` | Width of the flyout window in logical pixels. |
 | `width_preset` | `"Compact"` / `"Standard"` / `"Wide"` / `"UltraWide"` | `"Wide"` | Named width preset (overridden by free-resize). |
 | `stay_on_top` | `bool` | `true` | Keep flyout above all other windows. |
 | `click_through` | `bool` | `false` | Make flyout transparent to mouse input (pass-through). |
@@ -403,7 +405,7 @@ cargo test
 
 ## 📜 License
 
-This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the **GNU General Public License v3.0**. See the [LICENSE](LICENSE) file for details.
 
 <br/>
 
