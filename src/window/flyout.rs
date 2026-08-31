@@ -5,7 +5,7 @@ use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWINDOWATTRIBUTE};
 use windows::Win32::Graphics::Gdi::InvalidateRect;
 use windows::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, SetWindowPos, ShowWindow, HMENU, SWP_NOACTIVATE, SWP_SHOWWINDOW, SW_HIDE,
-    SW_SHOWNOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
+    SW_SHOWNOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
 };
 
 use super::appbar::AppBarManager;
@@ -43,9 +43,6 @@ pub unsafe fn create_flyout_window(
     let mut ex_style = WS_EX_TOOLWINDOW;
     if config.stay_on_top {
         ex_style |= WS_EX_TOPMOST;
-    }
-    if config.click_through {
-        ex_style |= WS_EX_TRANSPARENT;
     }
 
     CreateWindowExW(

@@ -385,12 +385,6 @@ pub unsafe fn show_tray_popup_menu(hwnd: HWND, config: &AppConfig) -> u32 {
     );
     let _ = AppendMenuW(
         opt_menu,
-        check_flag(config.click_through),
-        ID_CLICKTHROUGH_TOGGLE as usize,
-        w!("Click-Through (Transparent)"),
-    );
-    let _ = AppendMenuW(
-        opt_menu,
         check_flag(config.caffeine_enabled),
         ID_CAFFEINE_TOGGLE as usize,
         w!("Caffeine Mode (Prevent Sleep)"),

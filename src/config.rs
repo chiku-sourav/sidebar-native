@@ -97,7 +97,6 @@ pub struct AppConfig {
     pub sidebar_width: i32,
     pub width_preset: WindowWidthPreset,
     pub stay_on_top: bool,
-    pub click_through: bool,
     pub show_tray_icon: bool,
     pub run_at_startup: bool,
     #[serde(default, alias = "initially_hidden")]
@@ -171,7 +170,6 @@ impl Default for AppConfig {
             sidebar_width: 480,
             width_preset: WindowWidthPreset::Wide,
             stay_on_top: true,
-            click_through: false,
             show_tray_icon: true,
             run_at_startup: false,
             start_minimized: false,

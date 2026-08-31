@@ -6,9 +6,8 @@ use windows::Win32::System::Power::{
     SetThreadExecutionState, ES_CONTINUOUS, ES_DISPLAY_REQUIRED, ES_SYSTEM_REQUIRED,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetWindowLongW, MessageBoxW, PostQuitMessage, SetWindowLongW, SetWindowPos, ShowWindow,
-    GWL_EXSTYLE, HWND_NOTOPMOST, HWND_TOPMOST, MB_ICONINFORMATION, MB_OK, SWP_NOACTIVATE,
-    SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, WS_EX_TRANSPARENT,
+    MessageBoxW, PostQuitMessage, SetWindowPos, ShowWindow, HWND_NOTOPMOST, HWND_TOPMOST,
+    MB_ICONINFORMATION, MB_OK, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE,
 };
 
 use crate::config::{
@@ -456,18 +455,6 @@ pub unsafe fn handle_tray_menu_action(hwnd: HWND, action: u32, state: &AppState)
                 0,
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
             );
-        }
-        ID_CLICKTHROUGH_TOGGLE => {
-            let mut cfg = state.config.lock().unwrap();
-            cfg.click_through = !cfg.click_through;
-            let _ = cfg.save();
-            let current_ex = GetWindowLongW(hwnd, GWL_EXSTYLE);
-            let new_ex = if cfg.click_through {
-                current_ex | (WS_EX_TRANSPARENT.0 as i32)
-            } else {
-                current_ex & !(WS_EX_TRANSPARENT.0 as i32)
-            };
-            SetWindowLongW(hwnd, GWL_EXSTYLE, new_ex);
         }
         ID_CAFFEINE_TOGGLE => {
             let mut cfg = state.config.lock().unwrap();

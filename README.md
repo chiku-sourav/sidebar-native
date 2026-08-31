@@ -194,7 +194,7 @@ Right-clicking the system tray icon opens a rich context menu with the following
 | **Clock & Date Header** | Toggle clock, 12h/24h format, computer name/OS, date format (Disabled / Short / Normal / Long) |
 | **Units & Display** | Temperature °C/°F, CPU clock GHz/MHz, network & disk bytes or bits, per-core grid toggle, per-category process visibility, process sort order |
 | **Monitors & Cards** | Individual toggle for every card: CPU, GPU, Audio, RAM, Storage, Network, Processes, Virtual Memory, Battery, System Overview, Sensors Explorer; GPU multi-enum, shared memory breakdown, disabled hardware discovery |
-| **Window & Behavior** | Run at Windows Startup, Auto-Pause on Fullscreen/Games, Always On Top, Click-Through (Transparent Input), Caffeine Mode (Prevent Sleep) |
+| **Window & Behavior** | Run at Windows Startup, Auto-Pause on Fullscreen/Games, Always On Top, Caffeine Mode (Prevent Sleep) |
 | **Open Config File** | Opens `%APPDATA%\SideVitals\config.json` in your default editor |
 | **Open Debug Log** | Opens `%APPDATA%\SideVitals\sidevitals.log` for diagnostics |
 | **About / Exit** | About dialog and clean exit |
@@ -221,7 +221,6 @@ You can open and edit this file anytime directly via the Tray Menu (**Right Clic
   "sidebar_width": 480,
   "width_preset": "Wide",
   "stay_on_top": true,
-  "click_through": false,
   "show_tray_icon": true,
   "run_at_startup": false,
   "initially_hidden": false,
@@ -273,7 +272,6 @@ You can open and edit this file anytime directly via the Tray Menu (**Right Clic
 | `sidebar_width` | `i32` | `480` | Width of the flyout window in logical pixels. |
 | `width_preset` | `"Compact"` / `"Standard"` / `"Wide"` / `"UltraWide"` | `"Wide"` | Named width preset (overridden by free-resize). |
 | `stay_on_top` | `bool` | `true` | Keep flyout above all other windows. |
-| `click_through` | `bool` | `false` | Make flyout transparent to mouse input (pass-through). |
 | `show_tray_icon` | `bool` | `true` | Show the system tray RAM pill icon. |
 | `run_at_startup` | `bool` | `false` | Register in `HKCU\...\Run` for Windows startup. |
 | `initially_hidden` | `bool` | `false` | Start with flyout hidden (tray-only). |
