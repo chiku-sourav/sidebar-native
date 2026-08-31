@@ -1,4 +1,4 @@
-<div align="center">
+﻿<div align="center">
 
 # ⚡ Sidebar Native
 
@@ -85,15 +85,17 @@ Traditional hardware monitors and desktop widgets rely heavily on web frameworks
 
 ### 🔍 Comprehensive Telemetry Engine
 
-* **⚡ Processor (CPU)**: Real-time global utilization, clock speed in GHz/MHz, per-core utilization breakdown with dynamic load heatmaps, and package temperature (°C/°F).
-* **🎮 Graphics (GPU)**: Multi-GPU discovery (NVIDIA, AMD Radeon, Intel Arc/Iris/UHD), Dedicated VRAM usage and capacity, Shared System Memory allocation, and low-power registry enumeration for standby dGPUs (`D3Cold`).
+* **⚡ Processor (CPU)**: Real-time global utilization, clock speed in GHz/MHz, per-core utilization breakdown with dynamic load heatmaps, package temperature (°C/°F), and rolling 30-sample usage sparkline history.
+* **🎮 Graphics (GPU)**: Multi-GPU discovery (NVIDIA, AMD Radeon, Intel Arc/Iris/UHD), dedicated VRAM usage and capacity, shared system memory allocation, GPU temperatures, and low-power registry enumeration for standby dGPUs (`D3Cold`).
 * **🔊 Audio Endpoint**: Active Windows default playback device name, master volume percentage, and live mute indicator.
-* **💾 System Memory (RAM) & Pagefile**: Physical RAM utilization, committed virtual memory, swap/page file metrics, and dynamic taskbar badge.
-* **💽 Storage & Disks**: Physical drives, NVMe SSDs, SATA disks, removable/optical media, and WSL2 Linux (`ext4`) virtual disks with real-time read/write throughput rates.
+* **💾 System Memory (RAM) & Pagefile**: Physical RAM utilization with a rolling 30-sample history sparkline, committed virtual memory, swap/page file metrics, and dynamic system tray RAM badge.
+* **💿 Virtual Memory**: Dedicated card showing committed vs. available virtual address space and pagefile breakdown.
+* **💽 Storage & Disks**: Physical drives, NVMe SSDs, SATA disks, removable/optical media, and WSL2 Linux (`ext4`) virtual disks with real-time read/write throughput rates (MB/s or Mbps).
 * **🌐 Network Activity**: Live download/upload bandwidth, total session bytes transferred, active adapter detection, and local IPv4 address resolution.
 * **🔋 Power & Battery**: Battery charge percentage, AC power connection status, charging/discharging wattage flow rate, terminal voltage, health & wear degradation percentage, charge cycle count, and remaining battery life estimate.
-* **📊 Top Processes Categorization**: Live tracking of top resource consumers categorized by **CPU Usage**, **RAM Memory**, **Disk I/O Throughput**, and **Active Network Sockets (TCP/UDP)**.
+* **📊 Top Processes**: Live tracking of top resource consumers independently categorized by **CPU Usage**, **RAM Memory**, **Disk I/O Throughput**, and **Active Network Sockets (TCP/UDP)** — each category independently toggleable and sortable. ETW kernel-level network session provides per-process bandwidth when running as administrator.
 * **🌡️ Sensors & Hardware Explorer**: ACPI thermal zones, motherboard sensor readings, and optional discovery of offline/standby devices.
+* **🖥️ System Overview**: Hostname, OS version/edition display, live clock (12h/24h), and configurable date format.
 
 <br/>
 
@@ -119,8 +121,9 @@ Sidebar Native seamlessly blends into Windows 11 with authentic DWM materials an
 
 ### 📐 High-DPI & Scaling
 * **Per-Monitor High-DPI V2 Awareness**: Pixel-perfect rendering across multiple monitors with varying scaling factors (100%, 125%, 150%, 175%, 200%).
-* **Font Scaling Presets**: Small (100%), Medium (120%), Large (145% - Default), Extra Large (170%), Huge (200%).
+* **Font Scaling Presets**: Small (100%), Medium (120%), Large (145% — Default), Extra Large (170%), Huge (200%).
 * **Window Width Presets**: Compact (350px), Standard (410px), Wide (490px), Ultra-Wide (580px), or freely resizable using the 8px border handles.
+* **Background Opacity**: Independently configurable `bg_opacity` (0.0–1.0) for translucency control.
 
 <br/>
 
@@ -151,6 +154,8 @@ Sidebar Native seamlessly blends into Windows 11 with authentic DWM materials an
    ```
    The ultra-compact binary will be generated at `target/release/sidebar-native.exe` (stripped with Link-Time Optimization enabled).
 
+> **Note**: For per-process network bandwidth tracking, run the application as **Administrator** to allow the ETW kernel-network session to start.
+
 <br/>
 
 ---
@@ -161,11 +166,34 @@ Sidebar Native seamlessly blends into Windows 11 with authentic DWM materials an
 | :--- | :--- | :--- |
 | **Toggle Flyout** | <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>S</kbd> | Instantly shows or hides the diagnostics sidebar. |
 | **System Tray Click** | `Left Click` on Tray Icon | Toggles the flyout visibility. |
-| **Context Menu** | `Right Click` on Tray Icon | Opens settings for themes, cards, materials, widths, and options. |
+| **Context Menu** | `Right Click` on Tray Icon | Opens the full settings menu. |
 | **Scroll Content** | `Mouse Wheel` | Smoothly scrolls through telemetry cards. |
 | **Move Window** | `Click & Drag` Top Header | Freely positions the flyout anywhere on screen. |
 | **Dismiss Flyout** | `Click [✕]` Button | Hides the flyout back to the system tray. |
 | **Resize Flyout** | `Drag Window Borders` | 8-pixel hitboxes allow freeform window resizing. |
+
+<br/>
+
+---
+
+## 🖱️ Tray Context Menu
+
+Right-clicking the system tray icon opens a rich context menu with the following submenus. All changes apply **instantly** and persist automatically to `config.json`:
+
+| Submenu | Options |
+| :--- | :--- |
+| **Theme** | Auto (System Sync), Dark Slate, Light Clean, OLED Midnight Black, Nord Arctic Slate, Cyberpunk Neon |
+| **Font Size & Scale** | Small (100%), Medium (120%), Large (145%), Extra Large (170%), Huge (200%) |
+| **Backdrop Material** | Mica, Acrylic Blur, Mica Alt (Tabbed), Solid / None |
+| **Window Width & Size** | Compact (350px), Standard (410px), Wide (490px), Ultra Wide (580px) |
+| **Polling Interval** | 500 ms (Fast), 1.0 s (Default), 2.0 s, 3.0 s, 5.0 s (Low Power) |
+| **Clock & Date Header** | Toggle clock, 12h/24h format, computer name/OS, date format (Disabled / Short / Normal / Long) |
+| **Units & Display** | Temperature °C/°F, CPU clock GHz/MHz, network & disk bytes or bits, per-core grid toggle, per-category process visibility, process sort order |
+| **Monitors & Cards** | Individual toggle for every card: CPU, GPU, Audio, RAM, Storage, Network, Processes, Virtual Memory, Battery, System Overview, Sensors Explorer; GPU multi-enum, shared memory breakdown, disabled hardware discovery |
+| **Window & Behavior** | Run at Windows Startup, Auto-Pause on Fullscreen/Games, Always On Top, Click-Through (Transparent Input), Caffeine Mode (Prevent Sleep) |
+| **Open Config File** | Opens `%APPDATA%\SidebarNative\config.json` in your default editor |
+| **Open Debug Log** | Opens `%APPDATA%\SidebarNative\sidebar.log` for diagnostics |
+| **About / Exit** | About dialog and clean exit |
 
 <br/>
 
@@ -178,7 +206,7 @@ Sidebar Native stores its settings in a clean, human-readable JSON configuration
 %APPDATA%\SidebarNative\config.json
 ```
 
-You can open and edit this file anytime directly via the Tray Menu (**Right Click Tray** → **Open Config File**).
+You can open and edit this file anytime directly via the Tray Menu (**Right Click Tray** → **Open Config File**). All settings take effect on the next poll cycle without requiring a restart.
 
 ### Example `config.json`
 
@@ -194,6 +222,7 @@ You can open and edit this file anytime directly via the Tray Menu (**Right Clic
   "run_at_startup": false,
   "initially_hidden": false,
   "auto_pause_fullscreen": true,
+  "caffeine_enabled": false,
   "theme": "Auto",
   "backdrop": "Mica",
   "font_size": "Large",
@@ -231,6 +260,56 @@ You can open and edit this file anytime directly via the Tray Menu (**Right Clic
 }
 ```
 
+### Configuration Field Reference
+
+| Field | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `poll_interval_ms` | `u64` | `1000` | Telemetry refresh interval in milliseconds (min: 500). |
+| `dock_edge` | `"Left"` / `"Right"` | `"Right"` | Which screen edge the flyout docks to by default. |
+| `sidebar_width` | `i32` | `490` | Width of the flyout window in logical pixels. |
+| `width_preset` | `"Compact"` / `"Standard"` / `"Wide"` / `"UltraWide"` | `"Wide"` | Named width preset (overridden by free-resize). |
+| `stay_on_top` | `bool` | `true` | Keep flyout above all other windows. |
+| `click_through` | `bool` | `false` | Make flyout transparent to mouse input (pass-through). |
+| `show_tray_icon` | `bool` | `true` | Show the system tray RAM pill icon. |
+| `run_at_startup` | `bool` | `false` | Register in `HKCU\...\Run` for Windows startup. |
+| `initially_hidden` | `bool` | `false` | Start with flyout hidden (tray-only). |
+| `auto_pause_fullscreen` | `bool` | `false` | Suspend polling when a fullscreen app/game is detected. |
+| `caffeine_enabled` | `bool` | `false` | Prevent Windows from sleeping or engaging the screensaver. |
+| `theme` | string | `"Auto"` | Color palette: `Auto`, `DarkSlate`, `LightMode`, `OledBlack`, `Nord`, `Cyberpunk`. |
+| `backdrop` | string | `"Mica"` | DWM backdrop: `Mica`, `Acrylic`, `MicaAlt`, `None`. |
+| `font_size` | string | `"Large"` | UI text scale: `Small`, `Medium`, `Large`, `ExtraLarge`, `Huge`. |
+| `bg_opacity` | `f32` | `0.92` | Background opacity (0.0 = fully transparent, 1.0 = opaque). |
+| `show_machine_name` | `bool` | `true` | Display hostname and OS version in header. |
+| `show_clock` | `bool` | `true` | Display live clock in header. |
+| `clock_24hr` | `bool` | `false` | Use 24-hour time format. |
+| `date_format` | string | `"Normal"` | Date in header: `Disabled`, `Short` (MM/DD/YYYY), `Normal` (Mon, Jan 2), `Long` (Monday, Jan 2). |
+| `temperature_unit` | string | `"Celsius"` | Temperature unit: `Celsius` or `Fahrenheit`. |
+| `use_ghz` | `bool` | `true` | Show CPU clock in GHz (`false` = MHz). |
+| `use_bytes` | `bool` | `true` | Show network/disk speeds in bytes/s (`false` = bits/s). |
+| `show_core_loads` | `bool` | `true` | Show per-core utilization heatmap grid on CPU card. |
+| `sort_processes_by` | string | `"Cpu"` | Primary sort for the top-processes view: `Cpu`, `Memory`, `Disk`, `Network`. |
+| `show_top_cpu` | `bool` | `true` | Show CPU-usage process category. |
+| `show_top_ram` | `bool` | `true` | Show RAM-usage process category. |
+| `show_top_disk` | `bool` | `true` | Show disk I/O process category. |
+| `show_top_network` | `bool` | `true` | Show network-usage process category (requires admin for ETW). |
+| `process_limit_per_category` | `usize` | `4` | Maximum processes shown per category. |
+| `show_cpu` | `bool` | `true` | Show CPU card. |
+| `show_gpu` | `bool` | `true` | Show GPU card. |
+| `show_ram` | `bool` | `true` | Show RAM card. |
+| `show_storage` | `bool` | `true` | Show Storage & Drives card. |
+| `show_network` | `bool` | `true` | Show Network I/O card. |
+| `show_audio` | `bool` | `true` | Show Audio Endpoint card. |
+| `show_processes` | `bool` | `true` | Show Top Processes card. |
+| `show_virtual_memory` | `bool` | `true` | Show Virtual Memory / Pagefile card. |
+| `show_battery` | `bool` | `true` | Show Power & Battery card. |
+| `show_system_overview` | `bool` | `true` | Show System Overview card. |
+| `show_sensors_card` | `bool` | `true` | Show Hardware & Sensors Explorer card. |
+| `show_disabled_hardware` | `bool` | `true` | Include offline/disabled hardware in sensors explorer. |
+| `show_all_sensors` | `bool` | `true` | Show all sensor readings (`false` = only key sensors). |
+| `show_all_gpus` | `bool` | `true` | Enumerate and display all detected GPUs. |
+| `show_gpu_shared_memory` | `bool` | `true` | Show GPU shared system memory breakdown. |
+| `show_gpu_temperatures` | `bool` | `true` | Show GPU temperature on the GPU card. |
+
 <br/>
 
 ---
@@ -247,12 +326,14 @@ flowchart TB
         COREAUDIO["Windows CoreAudio COM (Endpoint & Vol)"]
         POWRSOS["Power & Battery IOCTL / ACPI"]
         NETAPI["IP Helper & NDIS (Bandwidth / Sockets)"]
+        ETW["ETW Kernel Session (Per-Process Net)"]
         DWMAPI["DWM Composition (Mica / Acrylic)"]
     end
 
     subgraph ENGINE["Telemetry Engine (Background Thread)"]
         Worker["Telemetry Collector Loop"]
         Snapshot[("TelemetrySnapshot (RwLock)")]
+        History["Rolling History Buffers (CPU / RAM × 30)"]
     end
 
     subgraph UI["Win32 Double-Buffered Renderer"]
@@ -267,8 +348,11 @@ flowchart TB
     COREAUDIO --> Worker
     POWRSOS --> Worker
     NETAPI --> Worker
+    ETW --> Worker
 
     Worker -->|Atomic Write| Snapshot
+    Worker --> History
+    History --> Snapshot
     Snapshot -->|Read Lock| Renderer
     Renderer --> Cards
     Cards --> WndProc
@@ -277,10 +361,27 @@ flowchart TB
 ```
 
 ### Key Architectural Tenets
-* **Open-Closed Principle (OCP)**: Hardware collectors implement the `TelemetryCollector` trait, and UI cards implement the `CardRenderer` trait—new cards and collectors can be added without modifying the core pipeline.
+* **Open-Closed Principle (OCP)**: Hardware collectors implement the `TelemetryCollector` trait, and UI cards implement the `CardRenderer` trait — new cards and collectors can be added without modifying the core pipeline.
 * **Single Responsibility (SRP)**: Hardware polling runs on a dedicated background thread isolated from the Win32 window message pump.
 * **Thread Safety**: Snapshot synchronization uses an `Arc<RwLock<TelemetrySnapshot>>` with atomic flags for instant, lock-free UI paints.
 * **Single Instance**: Protected by a global named Win32 Mutex (`Local\SidebarDiagnosticsNativeMutex`).
+* **Rolling History**: CPU and RAM utilization are tracked over 30 samples for sparkline trend visualization without heap churn.
+* **Structured Logging**: A built-in file logger writes timestamped `INFO`/`DEBUG`/`WARN`/`ERROR` entries to `%APPDATA%\SidebarNative\sidebar.log` with automatic 5 MB rotation and a panic hook for crash diagnostics.
+
+### Telemetry Collectors
+
+| Collector | Source APIs | Data |
+| :--- | :--- | :--- |
+| `CpuCollector` | `sysinfo` | Global %, per-core %, clock speed, package temp |
+| `GpuCollector` | `DXGI`, `D3D`, Registry | Multi-GPU VRAM, shared memory, temps, D3Cold standby |
+| `RamCollector` | `GlobalMemoryStatusEx` | Physical & virtual memory, pagefile |
+| `StorageCollector` | `GetDiskFreeSpaceEx`, IOCTL | Drive list, free/total, read/write throughput |
+| `NetworkCollector` | `IP Helper`, `NDIS` | Adapter info, IPv4, download/upload bandwidth |
+| `AudioCollector` | `CoreAudio` COM | Default endpoint name, volume, mute state |
+| `PowerCollector` | `GetSystemPowerStatus`, IOCTL/ACPI | Battery %, wattage, health, cycles, voltage |
+| `TemperatureCollector` | ACPI thermal zones | CPU package and system thermal sensors |
+| `ProcessCollector` | `EnumProcesses`, ETW | Top CPU/RAM/Disk/Network consumers |
+| `SensorsCollector` | Registry, SetupDi | Motherboard sensors, offline hardware discovery |
 
 <br/>
 
@@ -307,4 +408,3 @@ This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) f
 <div align="center">
   <sub>Built with ❤️ and Rust for Windows power users.</sub>
 </div>
-
