@@ -1,0 +1,51 @@
+# Rust & Cargo
+/target/
+**/*.rs.bk
+*.pdb
+
+# Logs & Dumps
+*.log
+*.dmp
+*.dump
+sidebar.log
+sidebar.old.log
+
+# Environment & Local Config
+.env
+.env.*
+!.env.example
+config.json
+
+# IDEs & Editors
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+.fleet/
+.vs/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+
+# Operating System Files
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Temporary & Swap Files
+*.swp
+*.swo
+*~
+*.bak
+*.tmp
