@@ -96,9 +96,9 @@ jobs:
           files: |
             target/x86_64-pc-windows-msvc/release/sidebar-native-windows-x86_64.zip
             target/x86_64-pc-windows-msvc/release/sidebar-native-windows-x86_64.zip.sha256
+            target/x86_64-pc-windows-msvc/release/sidebar-native.exe
           draft: ${{ github.event_name == 'workflow_dispatch' && inputs.draft || false }}
           prerelease: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease || false }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
