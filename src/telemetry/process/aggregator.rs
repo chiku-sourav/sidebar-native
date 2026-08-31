@@ -72,8 +72,7 @@ pub fn aggregate_and_rank_processes(
 
     // 3. Top Disk
     let mut disk_list = base_list.clone();
-    disk_list
-        .sort_by(|a, b| (b.1.disk_read + b.1.disk_write).cmp(&(a.1.disk_read + a.1.disk_write)));
+    disk_list.sort_by_key(|a| std::cmp::Reverse(a.1.disk_read + a.1.disk_write));
     let disk = disk_list
         .into_iter()
         .take(limit)
