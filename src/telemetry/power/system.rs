@@ -90,7 +90,11 @@ pub unsafe fn query_system_power() -> SystemPowerSnapshot {
         pct_status,
         sys_lifetime_sec,
         has_nt_battery,
-        nt_remaining_mwh: if nt_res.is_ok() { sbs.RemainingCapacity } else { 0 },
+        nt_remaining_mwh: if nt_res.is_ok() {
+            sbs.RemainingCapacity
+        } else {
+            0
+        },
         nt_max_mwh: if nt_res.is_ok() { sbs.MaxCapacity } else { 0 },
         nt_rate_mw: if nt_res.is_ok() { sbs.Rate as i32 } else { 0 },
         nt_estimated_time: if nt_res.is_ok() { sbs.EstimatedTime } else { 0 },
@@ -98,4 +102,3 @@ pub unsafe fn query_system_power() -> SystemPowerSnapshot {
         nt_discharging: nt_res.is_ok() && sbs.Discharging.as_bool(),
     }
 }
-

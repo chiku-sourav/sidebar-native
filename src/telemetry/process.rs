@@ -6,7 +6,9 @@ pub mod types;
 pub use aggregator::{aggregate_and_rank_processes, to_process_info};
 pub use etw::EtwNetworkCollector;
 pub use sockets::collect_process_socket_counts;
-pub use types::{AggregatedProcess, ProcessInfo, ProcessMemoryInfo, ProcessSocketStats, TopProcessLists};
+pub use types::{
+    AggregatedProcess, ProcessInfo, ProcessMemoryInfo, ProcessSocketStats, TopProcessLists,
+};
 
 pub use crate::telemetry::formatters::{format_bytes, format_speed};
 

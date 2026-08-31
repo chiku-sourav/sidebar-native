@@ -1,7 +1,4 @@
-pub fn calculate_health_and_wear(
-    design_mwh: u32,
-    full_mwh: u32,
-) -> (Option<f32>, Option<f32>) {
+pub fn calculate_health_and_wear(design_mwh: u32, full_mwh: u32) -> (Option<f32>, Option<f32>) {
     if design_mwh > 0 && full_mwh > 0 {
         let h = (full_mwh as f32 / design_mwh as f32) * 100.0;
         let clamped_h = h.min(100.0);
@@ -116,4 +113,3 @@ pub fn describe_power_state(
         "On Battery (Discharging)".to_string()
     }
 }
-

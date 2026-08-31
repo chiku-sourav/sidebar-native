@@ -12,7 +12,7 @@ use super::appbar::AppBarManager;
 use super::backdrop::BackdropManager;
 use super::state::{get_app_state, BASE_HEIGHT, BASE_WIDTH};
 use crate::config::{AppConfig, BackdropEffect};
-use crate::{log_info, log_error};
+use crate::{log_error, log_info};
 
 const DWMWA_WINDOW_CORNER_PREFERENCE: DWMWINDOWATTRIBUTE = DWMWINDOWATTRIBUTE(33);
 const DWMWCP_ROUND: i32 = 2;
@@ -119,4 +119,3 @@ pub fn hide_flyout(hwnd: HWND) {
         }
     }
 }
-

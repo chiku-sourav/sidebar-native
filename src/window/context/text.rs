@@ -245,4 +245,3 @@ pub fn estimate_wrapped_lines(text: &str, max_width_px: i32, font_scale: f32) ->
 
     lines
 }
-

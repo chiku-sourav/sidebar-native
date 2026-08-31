@@ -14,7 +14,10 @@ pub mod tray;
 pub use appbar::AppBarManager;
 pub use backdrop::BackdropManager;
 pub use events::wnd_proc;
-pub use flyout::{apply_window_styling, calculate_window_dimensions, create_flyout_window, hide_flyout, show_flyout, toggle_visibility};
+pub use flyout::{
+    apply_window_styling, calculate_window_dimensions, create_flyout_window, hide_flyout,
+    show_flyout, toggle_visibility,
+};
 pub use fullscreen::FullscreenDetector;
 pub use renderer::UIRenderer;
 pub use startup::StartupManager;

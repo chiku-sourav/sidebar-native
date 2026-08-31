@@ -31,4 +31,3 @@ pub fn format_speed(bytes_sec: u64) -> String {
         format!("{} B/s", bytes_sec)
     }
 }
-

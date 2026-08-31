@@ -32,4 +32,3 @@ pub fn get_app_state() -> Option<&'static AppState> {
 pub fn init_app_state(state: AppState) -> bool {
     APP_STATE.set(state).is_ok()
 }
-

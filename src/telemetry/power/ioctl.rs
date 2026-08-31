@@ -11,7 +11,6 @@ use windows::Win32::Foundation::{
 use windows::Win32::Storage::FileSystem::{
     CreateFileW, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
 };
-use windows::Win32::System::IO::DeviceIoControl;
 use windows::Win32::System::Power::{
     BatteryDeviceName, BatteryInformation, BatteryManufactureDate, BatteryManufactureName,
     BatteryTemperature, BatteryUniqueID, BATTERY_CHARGING, BATTERY_CRITICAL, BATTERY_DISCHARGING,
@@ -19,6 +18,7 @@ use windows::Win32::System::Power::{
     BATTERY_WAIT_STATUS, GUID_DEVICE_BATTERY, IOCTL_BATTERY_QUERY_INFORMATION,
     IOCTL_BATTERY_QUERY_STATUS, IOCTL_BATTERY_QUERY_TAG,
 };
+use windows::Win32::System::IO::DeviceIoControl;
 
 use super::types::SingleBatteryInfo;
 
@@ -333,4 +333,3 @@ unsafe fn query_single_battery_handle(handle: HANDLE) -> Option<SingleBatteryInf
 
     Some(battery_info)
 }
-

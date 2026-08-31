@@ -63,11 +63,7 @@ impl Logger {
         drop(lock);
 
         Logger::log("INFO", "init", "==========================================");
-        Logger::log(
-            "INFO",
-            "init",
-            "SideVitals (Rust) Initialized",
-        );
+        Logger::log("INFO", "init", "SideVitals (Rust) Initialized");
         Logger::log(
             "INFO",
             "init",

@@ -10,17 +10,17 @@ use windows::Win32::UI::WindowsAndMessaging::{
     MB_ICONINFORMATION, MB_OK, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SW_HIDE,
 };
 
+use super::super::backdrop::BackdropManager;
+use super::super::flyout::toggle_visibility;
+use super::super::startup::StartupManager;
+use super::super::state::{AppState, BASE_HEIGHT, BASE_WIDTH};
 use crate::config::{
     AppConfig, AppTheme, BackdropEffect, DateFormat, FontSize, TemperatureUnit, WindowWidthPreset,
 };
+use crate::log_info;
 use crate::logger::Logger;
 use crate::window::appbar::AppBarManager;
-use super::super::backdrop::BackdropManager;
-use super::super::flyout::{toggle_visibility};
-use super::super::startup::StartupManager;
-use super::super::state::{AppState, BASE_HEIGHT, BASE_WIDTH};
 use crate::window::tray::*;
-use crate::log_info;
 
 pub unsafe fn handle_tray_menu_action(hwnd: HWND, action: u32, state: &AppState) {
     match action {
@@ -97,10 +97,10 @@ pub unsafe fn handle_tray_menu_action(hwnd: HWND, action: u32, state: &AppState)
                 r.update_fonts(cur_dpi, font_scale);
             }
             let dpi_scale = (cur_dpi as f32 / 96.0).max(1.0);
-            let new_w = (BASE_WIDTH as f32 * dpi_scale * (1.0 + (font_scale - 1.0) * 0.35)).round()
-                as i32;
-            let new_h = (BASE_HEIGHT as f32 * dpi_scale * (1.0 + (font_scale - 1.0) * 0.25)).round()
-                as i32;
+            let new_w =
+                (BASE_WIDTH as f32 * dpi_scale * (1.0 + (font_scale - 1.0) * 0.35)).round() as i32;
+            let new_h =
+                (BASE_HEIGHT as f32 * dpi_scale * (1.0 + (font_scale - 1.0) * 0.25)).round() as i32;
             state.win_width.store(new_w, Ordering::Relaxed);
             state.win_height.store(new_h, Ordering::Relaxed);
 
@@ -521,4 +521,3 @@ unsafe fn apply_width_preset(hwnd: HWND, state: &AppState, preset: WindowWidthPr
     );
     let _ = InvalidateRect(hwnd, None, false);
 }
-

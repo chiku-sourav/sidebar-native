@@ -91,4 +91,3 @@ pub const ID_TOGGLE_PROC_CPU: u32 = 2921;
 pub const ID_TOGGLE_PROC_RAM: u32 = 2922;
 pub const ID_TOGGLE_PROC_DISK: u32 = 2923;
 pub const ID_TOGGLE_PROC_NETWORK: u32 = 2924;
-

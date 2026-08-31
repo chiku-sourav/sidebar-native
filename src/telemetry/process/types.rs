@@ -50,4 +50,3 @@ pub struct ProcessSocketStats {
     pub udp_sockets: usize,
     pub total_sockets: usize,
 }
-

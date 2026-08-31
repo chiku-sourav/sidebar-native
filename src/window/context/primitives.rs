@@ -159,4 +159,3 @@ impl RenderContext {
         TextOutW(hdc, x, y, &wstr[..wstr.len() - 1]);
     }
 }
-

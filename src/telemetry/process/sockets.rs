@@ -123,4 +123,3 @@ pub fn collect_process_socket_counts() -> HashMap<u32, ProcessSocketStats> {
 
     map
 }
-

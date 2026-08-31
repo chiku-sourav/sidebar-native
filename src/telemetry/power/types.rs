@@ -53,4 +53,3 @@ pub struct BatteryMetrics {
     // Multi-battery list
     pub batteries: Vec<SingleBatteryInfo>,
 }
-

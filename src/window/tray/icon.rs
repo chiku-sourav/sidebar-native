@@ -127,4 +127,3 @@ pub fn create_pill_icon(ram_percentage: u8) -> HICON {
         new_icon
     }
 }
-

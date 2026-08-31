@@ -2,14 +2,12 @@ use windows::core::{w, PCWSTR};
 use windows::Win32::Foundation::{HWND, POINT};
 use windows::Win32::UI::WindowsAndMessaging::{
     AppendMenuW, CreatePopupMenu, DestroyMenu, GetCursorPos, SetForegroundWindow, TrackPopupMenuEx,
-    MENU_ITEM_FLAGS, MF_CHECKED, MF_POPUP, MF_SEPARATOR, MF_STRING, MF_UNCHECKED,
-    TPM_BOTTOMALIGN, TPM_LEFTALIGN, TPM_RETURNCMD,
+    MENU_ITEM_FLAGS, MF_CHECKED, MF_POPUP, MF_SEPARATOR, MF_STRING, MF_UNCHECKED, TPM_BOTTOMALIGN,
+    TPM_LEFTALIGN, TPM_RETURNCMD,
 };
 
 use super::ids::*;
-use crate::config::{
-    AppConfig, AppTheme, BackdropEffect, DateFormat, TemperatureUnit,
-};
+use crate::config::{AppConfig, AppTheme, BackdropEffect, DateFormat, TemperatureUnit};
 
 pub unsafe fn show_tray_popup_menu(hwnd: HWND, config: &AppConfig) -> u32 {
     let menu = CreatePopupMenu().unwrap_or_default();
@@ -437,4 +435,3 @@ pub unsafe fn show_tray_popup_menu(hwnd: HWND, config: &AppConfig) -> u32 {
 
     cmd.0 as u32
 }
-

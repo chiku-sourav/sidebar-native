@@ -102,7 +102,8 @@ fn main() {
 
         RegisterClassExW(&wc);
 
-        let hwnd_res = create_flyout_window(HINSTANCE(h_instance.0), class_name, &config, win_w, win_h);
+        let hwnd_res =
+            create_flyout_window(HINSTANCE(h_instance.0), class_name, &config, win_w, win_h);
         let hwnd = match hwnd_res {
             Ok(h) => {
                 log_info!("Successfully created flyout window with HWND: {:?}", h.0);
