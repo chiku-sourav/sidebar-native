@@ -52,14 +52,14 @@ impl UIRenderer {
         let cards: Vec<Box<dyn CardRenderer>> = vec![
             Box::new(HeaderCard::new()),
             Box::new(CpuCard::new()),
-            Box::new(GpuCard::new()),
-            Box::new(AudioCard::new()),
             Box::new(RamCard::new()),
+            Box::new(GpuCard::new()),
             Box::new(StorageCard::new()),
             Box::new(NetworkCard::new()),
+            Box::new(AudioCard::new()),
+            Box::new(BatteryCard::new()),
             Box::new(ProcessesCard::new()),
             Box::new(VirtualMemoryCard::new()),
-            Box::new(BatteryCard::new()),
             Box::new(SystemCard::new()),
             Box::new(SensorsCard::new()),
         ];
