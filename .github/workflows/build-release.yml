@@ -3,21 +3,21 @@ name: Build & Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
     inputs:
       create_release:
-        description: 'Create a GitHub Release'
+        description: "Create a GitHub Release"
         required: false
         type: boolean
         default: false
       draft:
-        description: 'Publish as Draft'
+        description: "Publish as Draft"
         required: false
         type: boolean
         default: false
       prerelease:
-        description: 'Publish as Pre-release'
+        description: "Publish as Pre-release"
         required: false
         type: boolean
         default: false
@@ -59,8 +59,8 @@ jobs:
         shell: pwsh
         run: |
           $targetDir = "target/x86_64-pc-windows-msvc/release"
-          $binPath = Join-Path $targetDir "sidebar-native.exe"
-          $archiveName = "sidebar-native-windows-x86_64.zip"
+          $binPath = Join-Path $targetDir "sidevitals.exe"
+          $archiveName = "sidevitals-windows-x86_64.zip"
           $archivePath = Join-Path $targetDir $archiveName
 
           if (-not (Test-Path $binPath)) {
@@ -77,16 +77,16 @@ jobs:
           Set-Content -Path $hashFile -Value "$hash  $archiveName" -Encoding Ascii
 
           Write-Host "Artifacts packaged successfully:"
-          Get-ChildItem -Path $targetDir -Filter "sidebar-native-windows-x86_64*" | Format-Table Name, Length
+          Get-ChildItem -Path $targetDir -Filter "sidevitals-windows-x86_64*" | Format-Table Name, Length
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: sidebar-native-windows-x86_64
+          name: sidevitals-windows-x86_64
           path: |
-            target/x86_64-pc-windows-msvc/release/sidebar-native-windows-x86_64.zip
-            target/x86_64-pc-windows-msvc/release/sidebar-native-windows-x86_64.zip.sha256
-            target/x86_64-pc-windows-msvc/release/sidebar-native.exe
+            target/x86_64-pc-windows-msvc/release/sidevitals-windows-x86_64.zip
+            target/x86_64-pc-windows-msvc/release/sidevitals-windows-x86_64.zip.sha256
+            target/x86_64-pc-windows-msvc/release/sidevitals.exe
           if-no-files-found: error
 
       - name: Create GitHub Release
@@ -94,9 +94,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            target/x86_64-pc-windows-msvc/release/sidebar-native-windows-x86_64.zip
-            target/x86_64-pc-windows-msvc/release/sidebar-native-windows-x86_64.zip.sha256
-            target/x86_64-pc-windows-msvc/release/sidebar-native.exe
+            target/x86_64-pc-windows-msvc/release/sidevitals-windows-x86_64.zip
+            target/x86_64-pc-windows-msvc/release/sidevitals-windows-x86_64.zip.sha256
+            target/x86_64-pc-windows-msvc/release/sidevitals.exe
           draft: ${{ github.event_name == 'workflow_dispatch' && inputs.draft || false }}
           prerelease: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease || false }}
           generate_release_notes: true

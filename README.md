@@ -18,7 +18,7 @@
 
 **SideVitals** is a blazing-fast, resource-efficient system diagnostics monitor and flyout built exclusively for Windows 11 and Windows 10. Written in 100% pure Rust with direct Win32 and DWM APIs, it delivers real-time hardware telemetry with gorgeous Mica/Acrylic materials, fluid animations, and zero runtime bloat.
 
-[Key Features](#-key-features) • [Quick Start](#-quick-start) • [UI & Theming](#-ui-materials--theming) • [Controls & Shortcuts](#-controls--hotkeys) • [Configuration](#-configuration) • [Architecture](#-architecture)
+[Key Features](#-key-features) • [Quick Start](#-quick-start) • [UI & Theming](#-ui-materials--theming) • [Controls & Shortcuts](#-controls--hotkeys) • [Configuration](#-configuration) • [Architecture](#-architecture) • [Future Roadmap](#-future-roadmap--planned-upgrades)
 
 ---
 
@@ -316,60 +316,6 @@ You can open and edit this file anytime directly via the Tray Menu (**Right Clic
 
 ---
 
-## 🏗️ Architecture
-
-SideVitals is designed around clean **SOLID software architecture**, ensuring thread safety, modularity, and zero garbage collection overhead:
-
-```mermaid
-flowchart TB
-    subgraph OS_APIs["Windows 11 Subsystem & Hardware APIs"]
-        DXGI["DXGI / D3D (GPU & VRAM)"]
-        SYSINFO["sysinfo (CPU / Cores / RAM / Disks)"]
-        COREAUDIO["Windows CoreAudio COM (Endpoint & Vol)"]
-        POWRSOS["Power & Battery IOCTL / ACPI"]
-        NETAPI["IP Helper & NDIS (Bandwidth / Sockets)"]
-        ETW["ETW Kernel Session (Per-Process Net)"]
-        DWMAPI["DWM Composition (Mica / Acrylic)"]
-    end
-
-    subgraph ENGINE["Telemetry Engine (Background Thread)"]
-        Worker["Telemetry Collector Loop"]
-        Snapshot[("TelemetrySnapshot (RwLock)")]
-        History["Rolling History Buffers (CPU / RAM × 30)"]
-    end
-
-    subgraph UI["Win32 Double-Buffered Renderer"]
-        WndProc["WndProc Event Pump"]
-        Renderer["UIRenderer Pipeline"]
-        Cards["CardRenderer Traits (CPU, GPU, RAM, etc.)"]
-        Tray["System Tray RAM Pill Badge"]
-    end
-
-    DXGI --> Worker
-    SYSINFO --> Worker
-    COREAUDIO --> Worker
-    POWRSOS --> Worker
-    NETAPI --> Worker
-    ETW --> Worker
-
-    Worker -->|Atomic Write| Snapshot
-    Worker --> History
-    History --> Snapshot
-    Snapshot -->|Read Lock| Renderer
-    Renderer --> Cards
-    Cards --> WndProc
-    DWMAPI --> WndProc
-    Snapshot --> Tray
-```
-
-### Key Architectural Tenets
-* **Open-Closed Principle (OCP)**: Hardware collectors implement the `TelemetryCollector` trait, and UI cards implement the `CardRenderer` trait — new cards and collectors can be added without modifying the core pipeline.
-* **Single Responsibility (SRP)**: Hardware polling runs on a dedicated background thread isolated from the Win32 window message pump.
-* **Thread Safety**: Snapshot synchronization uses an `Arc<RwLock<TelemetrySnapshot>>` with atomic flags for instant, lock-free UI paints.
-* **Single Instance**: Protected by a global named Win32 Mutex (`Local\SideVitalsNativeMutex`).
-* **Rolling History**: CPU and RAM utilization are tracked over 30 samples for sparkline trend visualization without heap churn.
-* **Structured Logging**: A built-in file logger writes timestamped `INFO`/`DEBUG`/`WARN`/`ERROR` entries to `%APPDATA%\SideVitals\sidevitals.log` with automatic 5 MB rotation and a panic hook for crash diagnostics.
-
 ### Telemetry Collectors
 
 | Collector | Source APIs | Data |
@@ -384,6 +330,65 @@ flowchart TB
 | `TemperatureCollector` | ACPI thermal zones | CPU package and system thermal sensors |
 | `ProcessCollector` | `EnumProcesses`, ETW | Top CPU/RAM/Disk/Network consumers |
 | `SensorsCollector` | Registry, SetupDi | Motherboard sensors, offline hardware discovery |
+
+<br/>
+
+---
+
+## 🗺️ Future Roadmap & Planned Upgrades
+
+The following upgrades and architectural enhancements are planned to expand SideVitals' telemetry depth, rendering performance, and Windows shell integration:
+
+### 1. 🔍 Telemetry & Diagnostics Depth
+* **Vendor-Specific GPU Engines (NVIDIA NVML / AMD ADL / Intel IGCL)**:
+  * Dynamic loading of `nvml.dll` and `atiadlxx.dll` for discrete GPU core & memory clocks, board wattage (W), hotspot/junction temperatures, and fan RPM %.
+* **Hybrid CPU Architecture & RAPL Power**:
+  * Intel 12th–15th Gen and AMD CCD topology support (differentiating Performance vs. Efficient cores).
+  * Direct Running Average Power Limit (RAPL) MSR queries for live CPU package power consumption in Watts.
+* **NVMe SMART Diagnostics & Health**:
+  * Direct NVMe Log Page `0x02` queries (`IOCTL_STORAGE_QUERY_PROPERTY`) for SSD Health %, Controller Temperature, Total Bytes Written (TBW), and Media Error logs.
+* **Wi-Fi 6/7 WLAN & Gateway Latency**:
+  * WLAN API integration for Wi-Fi generation detection (Wi-Fi 7/6E/6/5), SSID, BSSID, RSSI Signal %, and live Gateway ping latency in milliseconds.
+* **Windows SMTC Media & Per-App Audio**:
+  * Track title, artist, and playback status via Windows System Media Transport Controls (SMTC), plus per-app volume sliders.
+
+### 2. 🎨 Direct2D & Fluent Design Modernization
+* **Direct2D 1.1 + DirectWrite Graphics Engine**:
+  * Hardware-accelerated vector rendering, subpixel ClearType typography, and near-zero CPU paint cycles.
+* **Native Windows 11 Iconography**:
+  * Transition from Unicode emojis to official Microsoft `Segoe Fluent Icons` / `Segoe MDL2 Assets` vector glyphs for an authentic Windows 11 Fluent 2 aesthetic.
+* **Dynamic Antialiased Sparklines**:
+  * Smooth Bézier curve telemetry graphs with gradient-filled area fills and multi-metric line overlays.
+
+### 3. 🪟 Advanced Windowing & Shell Integration
+* **True Desktop AppBar Screen Reservation**:
+  * Optional `SHAppBarMessage` (`ABM_NEW` / `ABM_SETPOS`) registration to dock SideVitals to the screen edge and automatically adjust the Windows desktop work area for all maximized apps.
+* **Auto-Hide & Edge-Peek Trigger**:
+  * Flyout hides into a subtle 2px edge bar and slides open upon cursor contact with the monitor edge.
+* **Multi-Monitor Targeting & Gaming HUD Overlay**:
+  * Choose target display (Primary, Secondary, or follow active mouse cursor), with an optional miniature floating HUD overlay for gaming benchmarks.
+
+### 4. ⚡ Interactivity & Quick Actions
+* **Process Management Menu**:
+  * Right-click any process in the Top Processes card to Terminate Task, Open File Location, or inspect details.
+* **Quick Launch Utility Shortcuts**:
+  * Click card headers to instantly open native Windows tools: Task Manager (`taskmgr.exe`), Disk Management (`diskmgmt.msc`), Network Connections (`ncpa.cpl`), and Sound Settings (`mmsys.cpl`).
+* **Collapsible Card Accordions & Custom Ordering**:
+  * Click to collapse/expand individual cards, and customize card display order via config or drag-and-drop.
+
+### 5. 🔔 Automated Alerts, Logging & Extensibility
+* **Native Windows Toast Alerts**:
+  * Low-overhead alerts for high thermal thresholds (e.g. CPU/GPU > 85°C), low disk space (< 10% free), and battery charge alarms.
+* **Benchmark Session Logging**:
+  * CSV/JSON time-series export to `%APPDATA%\SideVitals\logs\` for benchmarking and diagnostic logging.
+* **Local IPC Plugin API**:
+  * Lightweight named pipe / JSON-RPC server allowing external scripts or containers (Docker, WSL2, Home Assistant) to feed custom diagnostic cards into SideVitals.
+
+### 6. 📦 Packaging & Distribution
+* **Windows Package Manager (`winget`)**:
+  * Official manifest in `winget-pkgs` for one-command installation (`winget install sidevitals`).
+* **Signed MSIX / Release Automation**:
+  * Automated GitHub release pipelines with sparse package support and in-app update checks.
 
 <br/>
 
