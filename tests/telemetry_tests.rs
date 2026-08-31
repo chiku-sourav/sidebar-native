@@ -383,33 +383,35 @@ fn test_sensors_collector_with_battery() {
     use sidebar_native::telemetry::sensors::SensorsCollector;
     use sidebar_native::telemetry::TelemetrySnapshot;
 
-    let mut snapshot = TelemetrySnapshot::default();
-    snapshot.battery = BatteryMetrics {
-        has_battery: true,
-        is_charging: true,
-        is_discharging: false,
-        is_ac_connected: true,
-        is_saver_active: false,
-        is_critical: false,
-        percentage: 85,
-        life_time_seconds: Some(1800),
-        time_remaining_formatted: "30m until full".to_string(),
-        remaining_capacity_mwh: 42500,
-        full_charge_capacity_mwh: 50000,
-        designed_capacity_mwh: 55000,
-        health_percent: Some(90.9),
-        wear_percent: Some(9.1),
-        cycle_count: Some(88),
-        rate_watts: Some(25.0),
-        voltage_volts: Some(12.5),
-        temperature_c: Some(31.0),
-        chemistry: "Lithium-Ion (Li-Ion)".to_string(),
-        device_name: "L20M3PC2".to_string(),
-        manufacturer: "SMP".to_string(),
-        serial_number: "4500".to_string(),
-        manufacture_date: None,
-        power_state_description: "Plugged in (Charging)".to_string(),
-        batteries: vec![],
+    let snapshot = TelemetrySnapshot {
+        battery: BatteryMetrics {
+            has_battery: true,
+            is_charging: true,
+            is_discharging: false,
+            is_ac_connected: true,
+            is_saver_active: false,
+            is_critical: false,
+            percentage: 85,
+            life_time_seconds: Some(1800),
+            time_remaining_formatted: "30m until full".to_string(),
+            remaining_capacity_mwh: 42500,
+            full_charge_capacity_mwh: 50000,
+            designed_capacity_mwh: 55000,
+            health_percent: Some(90.9),
+            wear_percent: Some(9.1),
+            cycle_count: Some(88),
+            rate_watts: Some(25.0),
+            voltage_volts: Some(12.5),
+            temperature_c: Some(31.0),
+            chemistry: "Lithium-Ion (Li-Ion)".to_string(),
+            device_name: "L20M3PC2".to_string(),
+            manufacturer: "SMP".to_string(),
+            serial_number: "4500".to_string(),
+            manufacture_date: None,
+            power_state_description: "Plugged in (Charging)".to_string(),
+            batteries: vec![],
+        },
+        ..Default::default()
     };
 
     let cfg = AppConfig::default();
@@ -447,7 +449,7 @@ fn test_sensors_collector_with_battery() {
 
 #[test]
 fn test_process_network_ranking_and_stats() {
-    let mut net_procs = vec![
+    let net_procs = [
         ProcessInfo {
             name: "idle_server".to_string(),
             tcp_sockets: 5,
