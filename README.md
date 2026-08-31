@@ -1,4 +1,6 @@
-﻿<div align="center">
+<div align="center">
+
+<img src="icon.jpg" alt="Sidebar Native Icon" width="120" height="120" style="border-radius: 24px;" />
 
 # ⚡ Sidebar Native
 

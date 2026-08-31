@@ -1,21 +1,24 @@
 #![allow(unused_imports, dead_code, unused_must_use)]
 
 use windows::core::{w, PCWSTR};
-use windows::Win32::Foundation::{COLORREF, HWND, POINT, RECT};
+use windows::Win32::Foundation::{COLORREF, HINSTANCE, HWND, POINT, RECT};
 use windows::Win32::Graphics::Gdi::{
     CreateBitmap, CreateCompatibleBitmap, CreateCompatibleDC, CreateFontW, CreatePen,
     CreateSolidBrush, DeleteDC, DeleteObject, DrawTextW, FillRect, FrameRect, GetDC, ReleaseDC,
     RoundRect, SelectObject, SetBkMode, SetTextColor, DT_CENTER, DT_SINGLELINE, DT_VCENTER,
     FW_BOLD, HDC, HFONT, PS_SOLID, TRANSPARENT,
 };
+use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Shell::{
     Shell_NotifyIconW, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE, NIM_MODIFY,
     NOTIFYICONDATAW,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     AppendMenuW, CreateIconIndirect, CreatePopupMenu, DestroyIcon, DestroyMenu, GetCursorPos,
-    SetForegroundWindow, TrackPopupMenuEx, HICON, ICONINFO, MENU_ITEM_FLAGS, MF_CHECKED, MF_POPUP,
-    MF_SEPARATOR, MF_STRING, MF_UNCHECKED, TPM_BOTTOMALIGN, TPM_LEFTALIGN, TPM_RETURNCMD, WM_USER,
+    GetSystemMetrics, LoadIconW, LoadImageW, SetForegroundWindow, TrackPopupMenuEx, HICON,
+    ICONINFO, IMAGE_ICON, LR_DEFAULTCOLOR, LR_SHARED, MENU_ITEM_FLAGS, MF_CHECKED, MF_POPUP,
+    MF_SEPARATOR, MF_STRING, MF_UNCHECKED, SM_CXSMICON, SM_CYSMICON, TPM_BOTTOMALIGN,
+    TPM_LEFTALIGN, TPM_RETURNCMD, WM_USER,
 };
 
 use crate::config::{
@@ -131,9 +134,30 @@ pub struct SystemTray {
 unsafe impl Send for SystemTray {}
 unsafe impl Sync for SystemTray {}
 
+pub fn load_app_icon() -> HICON {
+    unsafe {
+        let h_instance = GetModuleHandleW(None).unwrap_or_default();
+        let cx = GetSystemMetrics(SM_CXSMICON);
+        let cy = GetSystemMetrics(SM_CYSMICON);
+        if let Ok(handle) = LoadImageW(
+            HINSTANCE(h_instance.0),
+            PCWSTR(1 as _),
+            IMAGE_ICON,
+            cx,
+            cy,
+            LR_SHARED | LR_DEFAULTCOLOR,
+        ) {
+            if !handle.is_invalid() && !handle.0.is_null() {
+                return HICON(handle.0);
+            }
+        }
+        LoadIconW(HINSTANCE(h_instance.0), PCWSTR(1 as _)).unwrap_or_default()
+    }
+}
+
 impl SystemTray {
     pub fn new(hwnd: HWND) -> Self {
-        let initial_icon = create_pill_icon(97);
+        let initial_icon = load_app_icon();
 
         let mut nid = NOTIFYICONDATAW {
             cbSize: 508, // Standard Windows V2/V3 compatible size
@@ -155,7 +179,7 @@ impl SystemTray {
             hwnd,
             nid,
             current_icon: initial_icon,
-            last_ram_pct: Some(97),
+            last_ram_pct: None,
         }
     }
 
@@ -177,17 +201,19 @@ impl SystemTray {
 
         self.last_ram_pct = Some(ram_percentage);
 
-        let new_icon = create_pill_icon(ram_percentage);
-        if !new_icon.is_invalid() {
-            self.nid.hIcon = new_icon;
-            unsafe {
-                let _ = Shell_NotifyIconW(NIM_MODIFY, &self.nid);
-                if !self.current_icon.is_invalid() && self.current_icon != HICON::default() {
-                    let _ = DestroyIcon(self.current_icon);
-                }
-            }
-            self.current_icon = new_icon;
+        let tip_str = format!(
+            "Sidebar Diagnostics (RAM: {}%) - Click to toggle flyout\0",
+            ram_percentage
+        );
+        let tip = tip_str.encode_utf16().collect::<Vec<u16>>();
+        let len = tip.len().min(self.nid.szTip.len());
+        self.nid.szTip = [0; 128];
+        self.nid.szTip[..len].copy_from_slice(&tip[..len]);
+        self.nid.uFlags = NIF_TIP;
+        unsafe {
+            let _ = Shell_NotifyIconW(NIM_MODIFY, &self.nid);
         }
+        self.nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     }
 
     pub fn show_context_menu(&self, config: &AppConfig) -> u32 {
@@ -825,9 +851,6 @@ impl Drop for SystemTray {
     fn drop(&mut self) {
         unsafe {
             let _ = Shell_NotifyIconW(NIM_DELETE, &self.nid);
-            if !self.current_icon.is_invalid() {
-                let _ = DestroyIcon(self.current_icon);
-            }
         }
     }
 }
