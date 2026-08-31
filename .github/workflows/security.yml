@@ -2,13 +2,16 @@ name: Security & Vulnerability Audit
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   schedule:
-    # Run every Monday at 00:00 UTC to catch newly reported CVEs / advisories
-    - cron: '0 0 * * 1'
+    # Run every Monday at 00:00 UTC
+    - cron: "0 0 * * 1"
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -18,18 +21,20 @@ jobs:
   cargo-audit:
     name: RustSec Advisory Audit
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: RustSec Security Audit
-        uses: rustsec/audit-check-action@v2.0.0
+        uses: rustsec/audit-check@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   cargo-deny:
-    name: Cargo Deny (Advisories, Licenses, Bans)
+    name: Cargo Deny
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -37,5 +42,5 @@ jobs:
       - name: Run cargo-deny checks
         uses: EmbarkStudios/cargo-deny-action@v2
         with:
-          arguments: --all-features check advisories bans licenses sources
-
+          arguments: --all-features
+          command-arguments: advisories bans licenses sources
