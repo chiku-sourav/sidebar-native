@@ -1,0 +1,41 @@
+﻿name: Branch Naming Check
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, reopened, synchronize]
+
+jobs:
+  check-branch-name:
+    name: Validate branch name
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check branch naming convention
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          PATTERN='^(feat|fix|refactor|perf|chore|docs|test|release|hotfix)/[a-z0-9][a-z0-9-]{0,48}[a-z0-9]$'
+          echo "Branch name: $BRANCH"
+          if echo "$BRANCH" | grep -qE "$PATTERN"; then
+            echo "Branch name is valid."
+          else
+            echo ""
+            echo "ERROR: Branch name '$BRANCH' does not follow the naming convention."
+            echo ""
+            echo "Expected format:  <type>/<short-description>"
+            echo ""
+            echo "Valid types: feat, fix, refactor, perf, chore, docs, test, release, hotfix"
+            echo ""
+            echo "Examples:"
+            echo "  feat/gpu-usage-widget"
+            echo "  fix/cpu-spike-on-idle"
+            echo "  chore/bump-windows-crate-0-59"
+            echo ""
+            echo "Rules:"
+            echo "  - Lowercase letters, digits, hyphens only in the description"
+            echo "  - Description must be 2-50 characters"
+            echo "  - No uppercase letters, no underscores, no spaces"
+            echo ""
+            exit 1
+          fi
