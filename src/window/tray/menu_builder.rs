@@ -355,7 +355,136 @@ pub unsafe fn show_tray_popup_menu(hwnd: HWND, config: &AppConfig) -> u32 {
     );
     let _ = AppendMenuW(menu, MF_POPUP, card_menu.0 as usize, w!("Monitors & Cards"));
 
-    // 8. Behavior & Startup Options Submenu
+    // 8. Advanced Hardware Details Submenu
+    let adv_menu = CreatePopupMenu().unwrap_or_default();
+    let _ = AppendMenuW(
+        adv_menu,
+        check_flag(config.adv_cpu),
+        ID_ADV_CPU as usize,
+        w!("Processor (Topology, Clocks, IRQ)"),
+    );
+    let _ = AppendMenuW(
+        adv_menu,
+        check_flag(config.adv_gpu),
+        ID_ADV_GPU as usize,
+        w!("Graphics (Engines, Encode, Driver)"),
+    );
+    let _ = AppendMenuW(
+        adv_menu,
+        check_flag(config.adv_ram),
+        ID_ADV_RAM as usize,
+        w!("Memory (DRAM Specs, Pools, HW Res)"),
+    );
+    let _ = AppendMenuW(
+        adv_menu,
+        check_flag(config.adv_storage),
+        ID_ADV_STORAGE as usize,
+        w!("Storage (IOPS, Latency, Health, Temp)"),
+    );
+    let _ = AppendMenuW(
+        adv_menu,
+        check_flag(config.adv_network),
+        ID_ADV_NETWORK as usize,
+        w!("Network (Link Speed, MAC, Packets)"),
+    );
+    let _ = AppendMenuW(
+        adv_menu,
+        check_flag(config.adv_battery),
+        ID_ADV_BATTERY as usize,
+        w!("Power & Battery (Alerts, Plan, Flow)"),
+    );
+    let _ = AppendMenuW(
+        adv_menu,
+        check_flag(config.adv_virtual_memory),
+        ID_ADV_VM as usize,
+        w!("Virtual Memory (Pools, Page Lists)"),
+    );
+    let _ = AppendMenuW(
+        adv_menu,
+        check_flag(config.adv_sensors),
+        ID_ADV_SENSORS as usize,
+        w!("Sensors Explorer (18+ Advanced Items)"),
+    );
+    let _ = AppendMenuW(
+        adv_menu,
+        check_flag(config.adv_bios),
+        ID_ADV_BIOS as usize,
+        w!("System Overview (BIOS, UEFI, TPM)"),
+    );
+    let _ = AppendMenuW(
+        menu,
+        MF_POPUP,
+        adv_menu.0 as usize,
+        w!("Advanced Hardware Details"),
+    );
+
+    // 9. Dedicated Caffeine Submenu
+    let caffeine_menu = CreatePopupMenu().unwrap_or_default();
+    let _ = AppendMenuW(
+        caffeine_menu,
+        check_flag(config.caffeine_enabled),
+        ID_CAFFEINE_ENABLE as usize,
+        w!("Enable Caffeine"),
+    );
+    let _ = AppendMenuW(caffeine_menu, MF_SEPARATOR, 0, PCWSTR::null());
+    let _ = AppendMenuW(
+        caffeine_menu,
+        check_flag(config.caffeine_display_on),
+        ID_CAFFEINE_MODE_DISPLAY as usize,
+        w!("Display & System (Keep Screen On)"),
+    );
+    let _ = AppendMenuW(
+        caffeine_menu,
+        check_flag(!config.caffeine_display_on),
+        ID_CAFFEINE_MODE_SYSTEM as usize,
+        w!("System Only (Allow Screen Off)"),
+    );
+    let _ = AppendMenuW(caffeine_menu, MF_SEPARATOR, 0, PCWSTR::null());
+    let _ = AppendMenuW(
+        caffeine_menu,
+        check_flag(config.caffeine_session_only),
+        ID_CAFFEINE_SESSION_ONLY as usize,
+        w!("Session Only (Reset on Restart)"),
+    );
+    let _ = AppendMenuW(caffeine_menu, MF_SEPARATOR, 0, PCWSTR::null());
+    let _ = AppendMenuW(
+        caffeine_menu,
+        check_flag(config.caffeine_timeout_mins == 0),
+        ID_CAFFEINE_TIMEOUT_INDEFINITE as usize,
+        w!("Indefinite (No Timeout)"),
+    );
+    let _ = AppendMenuW(
+        caffeine_menu,
+        check_flag(config.caffeine_timeout_mins == 30),
+        ID_CAFFEINE_TIMEOUT_30M as usize,
+        w!("30 Minutes"),
+    );
+    let _ = AppendMenuW(
+        caffeine_menu,
+        check_flag(config.caffeine_timeout_mins == 60),
+        ID_CAFFEINE_TIMEOUT_1H as usize,
+        w!("1 Hour"),
+    );
+    let _ = AppendMenuW(
+        caffeine_menu,
+        check_flag(config.caffeine_timeout_mins == 120),
+        ID_CAFFEINE_TIMEOUT_2H as usize,
+        w!("2 Hours"),
+    );
+    let _ = AppendMenuW(
+        caffeine_menu,
+        check_flag(config.caffeine_timeout_mins == 240),
+        ID_CAFFEINE_TIMEOUT_4H as usize,
+        w!("4 Hours"),
+    );
+    let _ = AppendMenuW(
+        menu,
+        MF_POPUP,
+        caffeine_menu.0 as usize,
+        w!("Caffeine (Keep Awake)"),
+    );
+
+    // 10. Behavior & Startup Options Submenu
     let opt_menu = CreatePopupMenu().unwrap_or_default();
     let _ = AppendMenuW(
         opt_menu,
@@ -381,12 +510,6 @@ pub unsafe fn show_tray_popup_menu(hwnd: HWND, config: &AppConfig) -> u32 {
         ID_TOPMOST_TOGGLE as usize,
         w!("Always On Top"),
     );
-    let _ = AppendMenuW(
-        opt_menu,
-        check_flag(config.caffeine_enabled),
-        ID_CAFFEINE_TOGGLE as usize,
-        w!("Caffeine Mode (Prevent Sleep)"),
-    );
     let _ = AppendMenuW(menu, MF_POPUP, opt_menu.0 as usize, w!("Window & Behavior"));
 
     let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
@@ -401,7 +524,7 @@ pub unsafe fn show_tray_popup_menu(hwnd: HWND, config: &AppConfig) -> u32 {
         menu,
         MF_STRING,
         ID_TRAY_ABOUT as usize,
-        w!("About Diagnostics"),
+        w!("About SideVitals"),
     );
     let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
     let _ = AppendMenuW(
@@ -430,6 +553,8 @@ pub unsafe fn show_tray_popup_menu(hwnd: HWND, config: &AppConfig) -> u32 {
     let _ = DestroyMenu(clock_menu);
     let _ = DestroyMenu(unit_menu);
     let _ = DestroyMenu(card_menu);
+    let _ = DestroyMenu(adv_menu);
+    let _ = DestroyMenu(caffeine_menu);
     let _ = DestroyMenu(opt_menu);
     let _ = DestroyMenu(menu);
 

@@ -62,7 +62,10 @@ impl CardRenderer for GpuCard {
                 ((95.0 + extra_name_h) * scale).round() as i32
             } else {
                 let has_shared = config.show_gpu_shared_memory && gpu.shared_total_bytes > 0;
-                let base_h = if has_shared { 178.0 } else { 132.0 };
+                let mut base_h = if has_shared { 178.0 } else { 132.0 };
+                if config.adv_gpu {
+                    base_h += 68.0; // 3 extra advanced rows
+                }
                 ((base_h + extra_name_h) * scale).round() as i32
             };
             total_h += card_h;
@@ -159,7 +162,10 @@ impl CardRenderer for GpuCard {
                 }
 
                 let has_shared = config.show_gpu_shared_memory && gpu.shared_total_bytes > 0;
-                let base_h = if has_shared { 178.0 } else { 132.0 };
+                let mut base_h = if has_shared { 178.0 } else { 132.0 };
+                if config.adv_gpu {
+                    base_h += 68.0;
+                }
                 let gpu_card_h = ((base_h + extra_name_h) * scale).round() as i32;
                 ctx.draw_card(
                     hdc,
@@ -210,20 +216,24 @@ impl CardRenderer for GpuCard {
                 );
 
                 inside_y += ctx.lh(22);
-                let gpu_temp_val = snapshot.temperature.gpu_temp.unwrap_or(44.0);
-                let gpu_temp_color = if gpu_temp_val >= 80.0 {
-                    ctx.pal.accent_red
-                } else if gpu_temp_val >= 65.0 {
-                    ctx.pal.accent_amber
-                } else {
-                    ctx.pal.accent_green
-                };
+                let (temp_str, gpu_temp_color) = if let Some(gpu_temp_val) = gpu.temperature_c {
+                    let color = if gpu_temp_val >= 80.0 {
+                        ctx.pal.accent_red
+                    } else if gpu_temp_val >= 65.0 {
+                        ctx.pal.accent_amber
+                    } else {
+                        ctx.pal.accent_green
+                    };
 
-                let temp_str = match config.temperature_unit {
-                    TemperatureUnit::Celsius => format!("{:.0} °C", gpu_temp_val),
-                    TemperatureUnit::Fahrenheit => {
-                        format!("{:.0} °F", (gpu_temp_val * 9.0 / 5.0) + 32.0)
-                    }
+                    let s = match config.temperature_unit {
+                        TemperatureUnit::Celsius => format!("{:.0} °C", gpu_temp_val),
+                        TemperatureUnit::Fahrenheit => {
+                            format!("{:.0} °F", (gpu_temp_val * 9.0 / 5.0) + 32.0)
+                        }
+                    };
+                    (s, color)
+                } else {
+                    ("N/A".to_string(), ctx.pal.text_muted)
                 };
 
                 ctx.draw_key_value(
@@ -278,6 +288,66 @@ impl CardRenderer for GpuCard {
                         shared_fill,
                         ctx.pal.accent_amber,
                         ctx.pal.progress_track,
+                    );
+                }
+
+                // Advanced GPU Details
+                if config.adv_gpu {
+                    inside_y += ctx.lh(22);
+                    let engine_str = format!(
+                        "3D: {:.0}% • Copy: {:.0}%",
+                        gpu.gpu_usage_pct, gpu.copy_engine_pct
+                    );
+                    ctx.draw_key_value(
+                        hdc,
+                        x + 14,
+                        inside_y,
+                        w - 28,
+                        "Engine Utilization",
+                        &engine_str,
+                        ctx.pal.text_muted,
+                        ctx.pal.accent_cyan,
+                    );
+
+                    inside_y += ctx.lh(20);
+                    let media_str = format!(
+                        "Enc: {:.0}% • Dec: {:.0}%",
+                        gpu.video_encode_pct, gpu.video_decode_pct
+                    );
+                    ctx.draw_key_value(
+                        hdc,
+                        x + 14,
+                        inside_y,
+                        w - 28,
+                        "Video Encode / Decode",
+                        &media_str,
+                        ctx.pal.text_muted,
+                        ctx.pal.text_primary,
+                    );
+
+                    inside_y += ctx.lh(20);
+                    let driver_display = if gpu.driver_version.is_empty() {
+                        "WDDM 3.1".to_string()
+                    } else {
+                        format!("v{}", gpu.driver_version)
+                    };
+                    let bus_str = if let (Some(gen), Some(width)) = (gpu.pcie_gen, gpu.pcie_width) {
+                        format!("PCIe {}.0 x{}", gen, width)
+                    } else if gpu.gpu_type.contains("Integrated") {
+                        "Integrated Bus".to_string()
+                    } else {
+                        "PCIe Bus".to_string()
+                    };
+                    let driver_pcie = format!("{} • {}", driver_display, bus_str);
+                    ctx.draw_key_value(
+                        hdc,
+                        x + 14,
+                        inside_y,
+                        w - 28,
+                        "Driver & Bus",
+                        &driver_pcie,
+                        ctx.pal.text_muted,
+                        ctx.pal.text_muted,
                     );
                 }
 

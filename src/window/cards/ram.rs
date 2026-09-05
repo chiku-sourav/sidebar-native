@@ -24,7 +24,11 @@ impl CardRenderer for RamCard {
 
     fn calculate_height(&self, _snapshot: &TelemetrySnapshot, config: &AppConfig) -> i32 {
         let scale = config.font_size.scale();
-        (126.0 * scale).round() as i32
+        let mut base_h = 126.0;
+        if config.adv_ram {
+            base_h += 68.0; // 3 extra advanced rows
+        }
+        (base_h * scale).round() as i32
     }
 
     fn render(
@@ -92,6 +96,61 @@ impl CardRenderer for RamCard {
                 &format!("Free ({:.1}G)", ram_free_gb),
                 ctx.pal.text_muted,
             );
+
+            // Advanced RAM Details
+            if config.adv_ram {
+                inside_y += ctx.lh(22);
+                let hw_res_mb = snapshot.ram.hardware_reserved_bytes as f32 / (1024.0 * 1024.0);
+                ctx.draw_key_value(
+                    hdc,
+                    x + 14,
+                    inside_y,
+                    w - 28,
+                    "Hardware Reserved",
+                    &format!("{:.0} MB", hw_res_mb),
+                    ctx.pal.text_muted,
+                    ctx.pal.text_primary,
+                );
+
+                inside_y += ctx.lh(20);
+                let np_mb = snapshot.ram.nonpaged_pool_bytes as f32 / (1024.0 * 1024.0);
+                let p_gb = snapshot.ram.paged_pool_bytes as f32 / (1024.0 * 1024.0 * 1024.0);
+                let pools_str = format!("Non-Paged: {:.0} MB • Paged: {:.1} GB", np_mb, p_gb);
+                ctx.draw_key_value(
+                    hdc,
+                    x + 14,
+                    inside_y,
+                    w - 28,
+                    "Kernel Pools",
+                    &pools_str,
+                    ctx.pal.text_muted,
+                    ctx.pal.accent_cyan,
+                );
+
+                inside_y += ctx.lh(20);
+                let dram_speed_str = snapshot
+                    .ram
+                    .ram_speed_mhz
+                    .map(|s| format!("-{}", s))
+                    .unwrap_or_default();
+                let dram_specs_str = format!(
+                    "{}{} • {} of {} slots",
+                    snapshot.ram.ram_type,
+                    dram_speed_str,
+                    snapshot.ram.ram_slots_used,
+                    snapshot.ram.ram_slots_total
+                );
+                ctx.draw_key_value(
+                    hdc,
+                    x + 14,
+                    inside_y,
+                    w - 28,
+                    "DRAM Hardware",
+                    &dram_specs_str,
+                    ctx.pal.text_muted,
+                    ctx.pal.text_muted,
+                );
+            }
         }
     }
 }

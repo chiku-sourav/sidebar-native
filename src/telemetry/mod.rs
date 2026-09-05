@@ -1,11 +1,14 @@
 #![allow(unused_imports, dead_code, unused_must_use)]
 
 pub mod audio;
+pub mod bios;
 pub mod collector;
 pub mod cpu;
 pub mod formatters;
 pub mod gpu;
 pub mod network;
+pub mod nvml;
+pub mod pdh;
 pub mod power;
 pub mod process;
 pub mod ram;
@@ -20,6 +23,7 @@ use std::time::{Duration, Instant};
 
 use crate::config::AppConfig;
 pub use audio::{AudioCollector, AudioMetrics};
+pub use bios::{BiosCollector, BiosInfo};
 pub use collector::TelemetryCollector;
 pub use cpu::CpuMetrics;
 pub use formatters::{format_bytes, format_speed};
@@ -42,6 +46,7 @@ pub struct TelemetrySnapshot {
     pub audio: AudioMetrics,
     pub battery: BatteryMetrics,
     pub temperature: TemperatureMetrics,
+    pub bios: Option<BiosInfo>,
     pub all_sensors: Vec<HardwareSensor>,
     pub top_cpu_processes: Vec<ProcessInfo>,
     pub top_ram_processes: Vec<ProcessInfo>,
@@ -112,6 +117,7 @@ impl TelemetryEngine {
                 Box::new(audio::AudioCollector::new()),
                 Box::new(power::PowerCollector::new()),
                 Box::new(temperature::TemperatureCollector::new()),
+                Box::new(bios::BiosCollector::new()),
                 Box::new(process::ProcessCollector::new()),
                 Box::new(sensors::SensorsCollector::new()),
             ];

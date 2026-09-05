@@ -69,10 +69,28 @@ impl PowerCollector {
             let mut agg_serial = String::new();
             let mut agg_mfg_date: Option<String> = None;
 
+            let mut agg_low_alert = 0u32;
+            let mut agg_warn_alert = 0u32;
+            let mut agg_gran1 = 100u32;
+            let mut agg_gran2 = 100u32;
+
             for bat in &individual_batteries {
                 total_remaining_mwh += bat.current_capacity_mwh;
                 total_full_mwh += bat.full_charge_capacity_mwh;
                 total_design_mwh += bat.designed_capacity_mwh;
+
+                if bat.low_capacity_alert_mwh > 0 {
+                    agg_low_alert = bat.low_capacity_alert_mwh;
+                }
+                if bat.warning_capacity_alert_mwh > 0 {
+                    agg_warn_alert = bat.warning_capacity_alert_mwh;
+                }
+                if bat.capacity_granularity_1_mwh > 0 {
+                    agg_gran1 = bat.capacity_granularity_1_mwh;
+                }
+                if bat.capacity_granularity_2_mwh > 0 {
+                    agg_gran2 = bat.capacity_granularity_2_mwh;
+                }
 
                 if let Some(r) = bat.rate_watts {
                     let current = agg_rate_watts.unwrap_or(0.0);
@@ -116,6 +134,8 @@ impl PowerCollector {
             if agg_rate_watts.is_none() && sys.nt_rate_mw != 0 {
                 agg_rate_watts = Some(sys.nt_rate_mw as f32 / 1000.0);
             }
+
+            let charge_rate_mw = agg_rate_watts.map(|w| (w * 1000.0) as i32);
 
             // Caching static info
             if total_design_mwh > 0 {
@@ -209,6 +229,8 @@ impl PowerCollector {
                 percentage,
             );
 
+            let power_plan_name = query_active_power_plan_name();
+
             BatteryMetrics {
                 has_battery: true,
                 is_charging,
@@ -234,10 +256,63 @@ impl PowerCollector {
                 serial_number: agg_serial,
                 manufacture_date: agg_mfg_date,
                 power_state_description,
+                charge_rate_mw,
+                capacity_granularity_1_mwh: agg_gran1,
+                capacity_granularity_2_mwh: agg_gran2,
+                low_capacity_alert_mwh: agg_low_alert,
+                warning_capacity_alert_mwh: agg_warn_alert,
+                power_plan_name,
                 batteries: individual_batteries,
             }
         }
     }
+}
+
+fn query_active_power_plan_name() -> String {
+    use windows::core::w;
+    use windows::Win32::System::Registry::{
+        RegCloseKey, RegOpenKeyExW, RegQueryValueExW, HKEY, HKEY_LOCAL_MACHINE, KEY_READ,
+    };
+
+    unsafe {
+        let key_path = w!("SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes");
+        let mut hkey = HKEY::default();
+        if RegOpenKeyExW(HKEY_LOCAL_MACHINE, key_path, 0, KEY_READ, &mut hkey).is_ok() {
+            let val_name = w!("ActivePowerScheme");
+            let mut buf = [0u8; 128];
+            let mut buf_len = buf.len() as u32;
+            if RegQueryValueExW(
+                hkey,
+                val_name,
+                None,
+                None,
+                Some(buf.as_mut_ptr()),
+                Some(&mut buf_len),
+            )
+            .is_ok()
+                && buf_len > 0
+            {
+                let u16_slice = std::slice::from_raw_parts(
+                    buf.as_ptr() as *const u16,
+                    (buf_len as usize / 2).saturating_sub(1),
+                );
+                let guid_str = String::from_utf16_lossy(u16_slice).to_lowercase();
+                let _ = RegCloseKey(hkey);
+
+                if guid_str.contains("381b4222") {
+                    return "Balanced".to_string();
+                } else if guid_str.contains("8c5e7fda") {
+                    return "High Performance".to_string();
+                } else if guid_str.contains("a1841308") {
+                    return "Power Saver".to_string();
+                } else if guid_str.contains("e9a42b02") {
+                    return "Ultimate Performance".to_string();
+                }
+            }
+            let _ = RegCloseKey(hkey);
+        }
+    }
+    "Balanced".to_string()
 }
 
 impl super::collector::TelemetryCollector for PowerCollector {

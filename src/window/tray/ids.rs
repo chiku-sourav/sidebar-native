@@ -91,3 +91,25 @@ pub const ID_TOGGLE_PROC_CPU: u32 = 2921;
 pub const ID_TOGGLE_PROC_RAM: u32 = 2922;
 pub const ID_TOGGLE_PROC_DISK: u32 = 2923;
 pub const ID_TOGGLE_PROC_NETWORK: u32 = 2924;
+
+// Advanced Hardware Detail Toggles
+pub const ID_ADV_CPU: u32 = 3001;
+pub const ID_ADV_GPU: u32 = 3002;
+pub const ID_ADV_RAM: u32 = 3003;
+pub const ID_ADV_STORAGE: u32 = 3004;
+pub const ID_ADV_NETWORK: u32 = 3005;
+pub const ID_ADV_BATTERY: u32 = 3006;
+pub const ID_ADV_VM: u32 = 3007;
+pub const ID_ADV_SENSORS: u32 = 3008;
+pub const ID_ADV_BIOS: u32 = 3009;
+
+// Dedicated Caffeine Submenu IDs
+pub const ID_CAFFEINE_ENABLE: u32 = 3101;
+pub const ID_CAFFEINE_MODE_DISPLAY: u32 = 3102;
+pub const ID_CAFFEINE_MODE_SYSTEM: u32 = 3103;
+pub const ID_CAFFEINE_SESSION_ONLY: u32 = 3104;
+pub const ID_CAFFEINE_TIMEOUT_INDEFINITE: u32 = 3105;
+pub const ID_CAFFEINE_TIMEOUT_30M: u32 = 3106;
+pub const ID_CAFFEINE_TIMEOUT_1H: u32 = 3107;
+pub const ID_CAFFEINE_TIMEOUT_2H: u32 = 3108;
+pub const ID_CAFFEINE_TIMEOUT_4H: u32 = 3109;

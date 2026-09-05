@@ -10,6 +10,7 @@ pub mod sensors;
 pub mod storage;
 pub mod system;
 pub mod virtual_memory;
+pub mod welcome;
 
 use super::context::RenderContext;
 use crate::config::AppConfig;

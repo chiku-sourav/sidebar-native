@@ -456,17 +456,154 @@ pub unsafe fn handle_tray_menu_action(hwnd: HWND, action: u32, state: &AppState)
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
             );
         }
-        ID_CAFFEINE_TOGGLE => {
+        ID_ADV_CPU => {
+            let mut cfg = state.config.lock().unwrap();
+            cfg.adv_cpu = !cfg.adv_cpu;
+            let _ = cfg.save();
+            drop(cfg);
+            let _ = InvalidateRect(hwnd, None, false);
+        }
+        ID_ADV_GPU => {
+            let mut cfg = state.config.lock().unwrap();
+            cfg.adv_gpu = !cfg.adv_gpu;
+            let _ = cfg.save();
+            drop(cfg);
+            let _ = InvalidateRect(hwnd, None, false);
+        }
+        ID_ADV_RAM => {
+            let mut cfg = state.config.lock().unwrap();
+            cfg.adv_ram = !cfg.adv_ram;
+            let _ = cfg.save();
+            drop(cfg);
+            let _ = InvalidateRect(hwnd, None, false);
+        }
+        ID_ADV_STORAGE => {
+            let mut cfg = state.config.lock().unwrap();
+            cfg.adv_storage = !cfg.adv_storage;
+            let _ = cfg.save();
+            drop(cfg);
+            let _ = InvalidateRect(hwnd, None, false);
+        }
+        ID_ADV_NETWORK => {
+            let mut cfg = state.config.lock().unwrap();
+            cfg.adv_network = !cfg.adv_network;
+            let _ = cfg.save();
+            drop(cfg);
+            let _ = InvalidateRect(hwnd, None, false);
+        }
+        ID_ADV_BATTERY => {
+            let mut cfg = state.config.lock().unwrap();
+            cfg.adv_battery = !cfg.adv_battery;
+            let _ = cfg.save();
+            drop(cfg);
+            let _ = InvalidateRect(hwnd, None, false);
+        }
+        ID_ADV_VM => {
+            let mut cfg = state.config.lock().unwrap();
+            cfg.adv_virtual_memory = !cfg.adv_virtual_memory;
+            let _ = cfg.save();
+            drop(cfg);
+            let _ = InvalidateRect(hwnd, None, false);
+        }
+        ID_ADV_SENSORS => {
+            let mut cfg = state.config.lock().unwrap();
+            cfg.adv_sensors = !cfg.adv_sensors;
+            let _ = cfg.save();
+            drop(cfg);
+            let _ = InvalidateRect(hwnd, None, false);
+        }
+        ID_ADV_BIOS => {
+            let mut cfg = state.config.lock().unwrap();
+            cfg.adv_bios = !cfg.adv_bios;
+            let _ = cfg.save();
+            drop(cfg);
+            let _ = InvalidateRect(hwnd, None, false);
+        }
+        ID_CAFFEINE_ENABLE | ID_CAFFEINE_TOGGLE => {
             let mut cfg = state.config.lock().unwrap();
             cfg.caffeine_enabled = !cfg.caffeine_enabled;
-            let _ = cfg.save();
+            if !cfg.caffeine_session_only {
+                let _ = cfg.save();
+            }
             if cfg.caffeine_enabled {
-                log_info!("Caffeine Mode enabled -> preventing system sleep and display off.");
-                SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED);
+                log_info!("Caffeine Mode enabled -> preventing system sleep.");
+                let flags = if cfg.caffeine_display_on {
+                    ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED
+                } else {
+                    ES_CONTINUOUS | ES_SYSTEM_REQUIRED
+                };
+                SetThreadExecutionState(flags);
+                *state.caffeine_start_time.lock().unwrap() = Some(std::time::Instant::now());
             } else {
                 log_info!("Caffeine Mode disabled -> restoring normal power management.");
                 SetThreadExecutionState(ES_CONTINUOUS);
+                *state.caffeine_start_time.lock().unwrap() = None;
             }
+        }
+        ID_CAFFEINE_MODE_DISPLAY => {
+            let mut cfg = state.config.lock().unwrap();
+            cfg.caffeine_display_on = true;
+            if !cfg.caffeine_session_only {
+                let _ = cfg.save();
+            }
+            if cfg.caffeine_enabled {
+                SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED);
+            }
+        }
+        ID_CAFFEINE_MODE_SYSTEM => {
+            let mut cfg = state.config.lock().unwrap();
+            cfg.caffeine_display_on = false;
+            if !cfg.caffeine_session_only {
+                let _ = cfg.save();
+            }
+            if cfg.caffeine_enabled {
+                SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED);
+            }
+        }
+        ID_CAFFEINE_SESSION_ONLY => {
+            let mut cfg = state.config.lock().unwrap();
+            cfg.caffeine_session_only = !cfg.caffeine_session_only;
+            let _ = cfg.save();
+        }
+        ID_CAFFEINE_TIMEOUT_INDEFINITE => {
+            let mut cfg = state.config.lock().unwrap();
+            cfg.caffeine_timeout_mins = 0;
+            if !cfg.caffeine_session_only {
+                let _ = cfg.save();
+            }
+            *state.caffeine_start_time.lock().unwrap() = Some(std::time::Instant::now());
+        }
+        ID_CAFFEINE_TIMEOUT_30M => {
+            let mut cfg = state.config.lock().unwrap();
+            cfg.caffeine_timeout_mins = 30;
+            if !cfg.caffeine_session_only {
+                let _ = cfg.save();
+            }
+            *state.caffeine_start_time.lock().unwrap() = Some(std::time::Instant::now());
+        }
+        ID_CAFFEINE_TIMEOUT_1H => {
+            let mut cfg = state.config.lock().unwrap();
+            cfg.caffeine_timeout_mins = 60;
+            if !cfg.caffeine_session_only {
+                let _ = cfg.save();
+            }
+            *state.caffeine_start_time.lock().unwrap() = Some(std::time::Instant::now());
+        }
+        ID_CAFFEINE_TIMEOUT_2H => {
+            let mut cfg = state.config.lock().unwrap();
+            cfg.caffeine_timeout_mins = 120;
+            if !cfg.caffeine_session_only {
+                let _ = cfg.save();
+            }
+            *state.caffeine_start_time.lock().unwrap() = Some(std::time::Instant::now());
+        }
+        ID_CAFFEINE_TIMEOUT_4H => {
+            let mut cfg = state.config.lock().unwrap();
+            cfg.caffeine_timeout_mins = 240;
+            if !cfg.caffeine_session_only {
+                let _ = cfg.save();
+            }
+            *state.caffeine_start_time.lock().unwrap() = Some(std::time::Instant::now());
         }
         ID_TRAY_OPEN_CONFIG => {
             log_info!("Tray Menu -> Open Config File selected.");

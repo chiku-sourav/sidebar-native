@@ -14,8 +14,9 @@ use windows::Win32::System::Ioctl::{
     StorageDeviceSeekPenaltyProperty, IOCTL_DISK_GET_DRIVE_GEOMETRY_EX,
     IOCTL_STORAGE_QUERY_PROPERTY, STORAGE_PROPERTY_QUERY,
 };
-use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryW};
 use windows::Win32::System::IO::DeviceIoControl;
+
+use super::pdh::{PdhHCounter, PdhHelper};
 
 const IOCTL_STORAGE_GET_DEVICE_NUMBER: u32 = 0x002D1080;
 
@@ -40,6 +41,16 @@ pub struct DriveInfo {
     pub used_bytes: u64,
     pub usage_percentage: f32,
     pub is_linux_or_raw: bool,
+
+    // Advanced Metrics (gated by config.adv_storage)
+    pub read_latency_ms: f32,
+    pub write_latency_ms: f32,
+    pub queue_depth: f32,
+    pub iops_read: u64,
+    pub iops_write: u64,
+    pub health_status: String,
+    pub temperature_celsius: Option<f32>,
+    pub serial_number: String,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -59,126 +70,70 @@ struct PhysicalDiskMeta {
     bus_type: String,
     is_ssd: bool,
     size_bytes: u64,
+    serial_number: String,
+    health_status: String,
+    temperature_celsius: Option<f32>,
 }
 
-type PdhHQuery = isize;
-type PdhHCounter = isize;
-
-#[repr(C)]
-#[derive(Copy, Clone)]
-struct PdhFmtCounterValue {
-    c_status: u32,
-    value: PdhFmtCounterValueUnion,
+#[derive(Default, Debug, Clone, Copy)]
+pub struct PdhDriveSample {
+    pub read_bytes_sec: u64,
+    pub write_bytes_sec: u64,
+    pub read_iops: u64,
+    pub write_iops: u64,
+    pub read_latency_ms: f32,
+    pub write_latency_ms: f32,
+    pub queue_depth: f32,
 }
-
-#[repr(C)]
-#[derive(Copy, Clone)]
-union PdhFmtCounterValueUnion {
-    long_value: i32,
-    double_value: f64,
-    large_value: i64,
-    ansi_str_value: *const u8,
-    wide_str_value: *const u16,
-}
-
-const PDH_FMT_DOUBLE: u32 = 0x00000200;
-const PDH_FMT_NOSCALE: u32 = 0x00001000;
-
-type FnPdhOpenQueryW = unsafe extern "system" fn(*const u16, usize, *mut PdhHQuery) -> u32;
-type FnPdhAddEnglishCounterW =
-    unsafe extern "system" fn(PdhHQuery, *const u16, usize, *mut PdhHCounter) -> u32;
-type FnPdhCollectQueryData = unsafe extern "system" fn(PdhHQuery) -> u32;
-type FnPdhGetFormattedCounterValue =
-    unsafe extern "system" fn(PdhHCounter, u32, *mut u32, *mut PdhFmtCounterValue) -> u32;
-type FnPdhRemoveCounter = unsafe extern "system" fn(PdhHCounter) -> u32;
-type FnPdhCloseQuery = unsafe extern "system" fn(PdhHQuery) -> u32;
 
 struct PdhDriveCounters {
     read_counter: PdhHCounter,
     write_counter: PdhHCounter,
+    read_iops_counter: PdhHCounter,
+    write_iops_counter: PdhHCounter,
+    read_lat_counter: PdhHCounter,
+    write_lat_counter: PdhHCounter,
+    queue_counter: PdhHCounter,
 }
 
 struct PdhStorage {
-    h_module: isize,
-    h_query: PdhHQuery,
+    helper: PdhHelper,
     counters: HashMap<String, PdhDriveCounters>,
     total_counters: Option<PdhDriveCounters>,
-    fn_add_counter: FnPdhAddEnglishCounterW,
-    fn_collect: FnPdhCollectQueryData,
-    fn_get_value: FnPdhGetFormattedCounterValue,
-    fn_remove_counter: FnPdhRemoveCounter,
-    fn_close: FnPdhCloseQuery,
-    has_collected_once: bool,
 }
-
-unsafe impl Send for PdhStorage {}
-unsafe impl Sync for PdhStorage {}
 
 impl PdhStorage {
     pub fn new() -> Option<Self> {
-        unsafe {
-            let h_module = LoadLibraryW(w!("pdh.dll")).ok()?;
-            if h_module.is_invalid() {
-                return None;
-            }
+        let mut helper = PdhHelper::new()?;
 
-            let fn_open: FnPdhOpenQueryW =
-                std::mem::transmute(GetProcAddress(h_module, s!("PdhOpenQueryW"))?);
-            let fn_add_counter: FnPdhAddEnglishCounterW =
-                std::mem::transmute(GetProcAddress(h_module, s!("PdhAddEnglishCounterW"))?);
-            let fn_collect: FnPdhCollectQueryData =
-                std::mem::transmute(GetProcAddress(h_module, s!("PdhCollectQueryData"))?);
-            let fn_get_value: FnPdhGetFormattedCounterValue =
-                std::mem::transmute(GetProcAddress(h_module, s!("PdhGetFormattedCounterValue"))?);
-            let fn_remove_counter: FnPdhRemoveCounter =
-                std::mem::transmute(GetProcAddress(h_module, s!("PdhRemoveCounter"))?);
-            let fn_close: FnPdhCloseQuery =
-                std::mem::transmute(GetProcAddress(h_module, s!("PdhCloseQuery"))?);
+        // Setup _Total counters
+        let tr = helper.add_counter("\\LogicalDisk(_Total)\\Disk Read Bytes/sec");
+        let tw = helper.add_counter("\\LogicalDisk(_Total)\\Disk Write Bytes/sec");
+        let tri = helper.add_counter("\\LogicalDisk(_Total)\\Disk Reads/sec");
+        let twi = helper.add_counter("\\LogicalDisk(_Total)\\Disk Writes/sec");
+        let trl = helper.add_counter("\\LogicalDisk(_Total)\\Avg. Disk sec/Read");
+        let twl = helper.add_counter("\\LogicalDisk(_Total)\\Avg. Disk sec/Write");
+        let tq = helper.add_counter("\\LogicalDisk(_Total)\\Current Disk Queue Length");
 
-            let mut h_query: PdhHQuery = 0;
-            if fn_open(std::ptr::null(), 0, &mut h_query) != 0 || h_query == 0 {
-                let _ = CloseHandle(HANDLE(h_module.0));
-                return None;
-            }
+        let total_counters = if tr != 0 && tw != 0 {
+            Some(PdhDriveCounters {
+                read_counter: tr,
+                write_counter: tw,
+                read_iops_counter: tri,
+                write_iops_counter: twi,
+                read_lat_counter: trl,
+                write_lat_counter: twl,
+                queue_counter: tq,
+            })
+        } else {
+            None
+        };
 
-            let mut storage = Self {
-                h_module: h_module.0 as isize,
-                h_query,
-                counters: HashMap::new(),
-                total_counters: None,
-                fn_add_counter,
-                fn_collect,
-                fn_get_value,
-                fn_remove_counter,
-                fn_close,
-                has_collected_once: false,
-            };
-
-            // Setup _Total counters
-            let total_read_path: Vec<u16> = "\\LogicalDisk(_Total)\\Disk Read Bytes/sec\0"
-                .encode_utf16()
-                .collect();
-            let total_write_path: Vec<u16> = "\\LogicalDisk(_Total)\\Disk Write Bytes/sec\0"
-                .encode_utf16()
-                .collect();
-            let mut h_tr: PdhHCounter = 0;
-            let mut h_tw: PdhHCounter = 0;
-            let r1 =
-                (storage.fn_add_counter)(storage.h_query, total_read_path.as_ptr(), 0, &mut h_tr);
-            let r2 =
-                (storage.fn_add_counter)(storage.h_query, total_write_path.as_ptr(), 0, &mut h_tw);
-            if r1 == 0 && r2 == 0 {
-                storage.total_counters = Some(PdhDriveCounters {
-                    read_counter: h_tr,
-                    write_counter: h_tw,
-                });
-            }
-
-            // Warm up initial sample
-            let _ = (storage.fn_collect)(storage.h_query);
-
-            Some(storage)
-        }
+        Some(Self {
+            helper,
+            counters: HashMap::new(),
+            total_counters,
+        })
     }
 
     pub fn ensure_counter_for_drive(&mut self, letter: char) {
@@ -187,27 +142,42 @@ impl PdhStorage {
             return;
         }
 
-        let read_path: Vec<u16> = format!("\\LogicalDisk({}:)\\Disk Read Bytes/sec\0", letter)
-            .encode_utf16()
-            .collect();
-        let write_path: Vec<u16> = format!("\\LogicalDisk({}:)\\Disk Write Bytes/sec\0", letter)
-            .encode_utf16()
-            .collect();
+        let r = self
+            .helper
+            .add_counter(&format!("\\LogicalDisk({}:)\\Disk Read Bytes/sec", letter));
+        let w = self
+            .helper
+            .add_counter(&format!("\\LogicalDisk({}:)\\Disk Write Bytes/sec", letter));
+        let ri = self
+            .helper
+            .add_counter(&format!("\\LogicalDisk({}:)\\Disk Reads/sec", letter));
+        let wi = self
+            .helper
+            .add_counter(&format!("\\LogicalDisk({}:)\\Disk Writes/sec", letter));
+        let rl = self
+            .helper
+            .add_counter(&format!("\\LogicalDisk({}:)\\Avg. Disk sec/Read", letter));
+        let wl = self
+            .helper
+            .add_counter(&format!("\\LogicalDisk({}:)\\Avg. Disk sec/Write", letter));
+        let q = self.helper.add_counter(&format!(
+            "\\LogicalDisk({}:)\\Current Disk Queue Length",
+            letter
+        ));
 
-        unsafe {
-            let mut h_r: PdhHCounter = 0;
-            let mut h_w: PdhHCounter = 0;
-            let r_res = (self.fn_add_counter)(self.h_query, read_path.as_ptr(), 0, &mut h_r);
-            let w_res = (self.fn_add_counter)(self.h_query, write_path.as_ptr(), 0, &mut h_w);
-            if r_res == 0 && w_res == 0 {
-                self.counters.insert(
-                    key,
-                    PdhDriveCounters {
-                        read_counter: h_r,
-                        write_counter: h_w,
-                    },
-                );
-            }
+        if r != 0 && w != 0 {
+            self.counters.insert(
+                key,
+                PdhDriveCounters {
+                    read_counter: r,
+                    write_counter: w,
+                    read_iops_counter: ri,
+                    write_iops_counter: wi,
+                    read_lat_counter: rl,
+                    write_lat_counter: wl,
+                    queue_counter: q,
+                },
+            );
         }
     }
 
@@ -217,91 +187,83 @@ impl PdhStorage {
             return;
         }
 
-        let read_path: Vec<u16> = format!("\\PhysicalDisk({})\\Disk Read Bytes/sec\0", index)
-            .encode_utf16()
-            .collect();
-        let write_path: Vec<u16> = format!("\\PhysicalDisk({})\\Disk Write Bytes/sec\0", index)
-            .encode_utf16()
-            .collect();
+        let r = self
+            .helper
+            .add_counter(&format!("\\PhysicalDisk({})\\Disk Read Bytes/sec", index));
+        let w = self
+            .helper
+            .add_counter(&format!("\\PhysicalDisk({})\\Disk Write Bytes/sec", index));
+        let ri = self
+            .helper
+            .add_counter(&format!("\\PhysicalDisk({})\\Disk Reads/sec", index));
+        let wi = self
+            .helper
+            .add_counter(&format!("\\PhysicalDisk({})\\Disk Writes/sec", index));
+        let rl = self
+            .helper
+            .add_counter(&format!("\\PhysicalDisk({})\\Avg. Disk sec/Read", index));
+        let wl = self
+            .helper
+            .add_counter(&format!("\\PhysicalDisk({})\\Avg. Disk sec/Write", index));
+        let q = self.helper.add_counter(&format!(
+            "\\PhysicalDisk({})\\Current Disk Queue Length",
+            index
+        ));
 
-        unsafe {
-            let mut h_r: PdhHCounter = 0;
-            let mut h_w: PdhHCounter = 0;
-            let r_res = (self.fn_add_counter)(self.h_query, read_path.as_ptr(), 0, &mut h_r);
-            let w_res = (self.fn_add_counter)(self.h_query, write_path.as_ptr(), 0, &mut h_w);
-            if r_res == 0 && w_res == 0 {
-                self.counters.insert(
-                    key,
-                    PdhDriveCounters {
-                        read_counter: h_r,
-                        write_counter: h_w,
-                    },
-                );
-            }
+        if r != 0 && w != 0 {
+            self.counters.insert(
+                key,
+                PdhDriveCounters {
+                    read_counter: r,
+                    write_counter: w,
+                    read_iops_counter: ri,
+                    write_iops_counter: wi,
+                    read_lat_counter: rl,
+                    write_lat_counter: wl,
+                    queue_counter: q,
+                },
+            );
         }
     }
 
-    pub fn collect_rates(&mut self) -> (HashMap<String, (u64, u64)>, (u64, u64)) {
+    pub fn collect_rates(&mut self) -> (HashMap<String, PdhDriveSample>, (u64, u64)) {
         let mut results = HashMap::new();
         let mut total_rates = (0u64, 0u64);
 
-        unsafe {
-            let status = (self.fn_collect)(self.h_query);
-            if status != 0 {
-                return (results, total_rates);
-            }
+        if !self.helper.collect() {
+            return (results, total_rates);
+        }
 
-            if !self.has_collected_once {
-                self.has_collected_once = true;
-                return (results, total_rates);
-            }
+        for (key, pair) in &self.counters {
+            let r_speed = self.helper.read_u64(pair.read_counter);
+            let w_speed = self.helper.read_u64(pair.write_counter);
+            let r_iops = self.helper.read_u64(pair.read_iops_counter);
+            let w_iops = self.helper.read_u64(pair.write_iops_counter);
+            let r_lat = (self.helper.read_f64(pair.read_lat_counter) * 1000.0) as f32;
+            let w_lat = (self.helper.read_f64(pair.write_lat_counter) * 1000.0) as f32;
+            let q_len = self.helper.read_f32(pair.queue_counter);
 
-            for (key, pair) in &self.counters {
-                let r_speed = self.read_counter_value(pair.read_counter);
-                let w_speed = self.read_counter_value(pair.write_counter);
-                results.insert(key.clone(), (r_speed, w_speed));
-            }
+            results.insert(
+                key.clone(),
+                PdhDriveSample {
+                    read_bytes_sec: r_speed,
+                    write_bytes_sec: w_speed,
+                    read_iops: r_iops,
+                    write_iops: w_iops,
+                    read_latency_ms: r_lat,
+                    write_latency_ms: w_lat,
+                    queue_depth: q_len,
+                },
+            );
+        }
 
-            if let Some(total) = &self.total_counters {
-                let tr = self.read_counter_value(total.read_counter);
-                let tw = self.read_counter_value(total.write_counter);
-                total_rates = (tr, tw);
-            }
+        if let Some(total) = &self.total_counters {
+            let tr = self.helper.read_u64(total.read_counter);
+            let tw = self.helper.read_u64(total.write_counter);
+            total_rates = (tr, tw);
         }
 
         (results, total_rates)
-    }
-
-    unsafe fn read_counter_value(&self, counter: PdhHCounter) -> u64 {
-        let mut val = PdhFmtCounterValue {
-            c_status: 0,
-            value: PdhFmtCounterValueUnion { double_value: 0.0 },
-        };
-        let mut counter_type = 0u32;
-        let res = (self.fn_get_value)(
-            counter,
-            PDH_FMT_DOUBLE | PDH_FMT_NOSCALE,
-            &mut counter_type,
-            &mut val,
-        );
-        if res == 0 && val.c_status == 0 {
-            val.value.double_value.max(0.0) as u64
-        } else {
-            0
-        }
-    }
-}
-
-impl Drop for PdhStorage {
-    fn drop(&mut self) {
-        unsafe {
-            if self.h_query != 0 {
-                (self.fn_close)(self.h_query);
-            }
-            if self.h_module != 0 {
-                let _ = CloseHandle(HANDLE(self.h_module as *mut _));
-            }
-        }
     }
 }
 
@@ -428,8 +390,9 @@ impl StorageCollector {
                         };
 
                         let drive_key = format!("{}:", drive_letter);
-                        let (r_speed, w_speed) =
-                            rates_map.get(&drive_key).copied().unwrap_or((0, 0));
+                        let sample = rates_map.get(&drive_key).copied().unwrap_or_default();
+                        let r_speed = sample.read_bytes_sec;
+                        let w_speed = sample.write_bytes_sec;
 
                         total_read_sec += r_speed;
                         total_write_sec += w_speed;
@@ -439,6 +402,12 @@ impl StorageCollector {
                             primary_free = total_free_bytes;
                             primary_usage_pct = usage_percentage;
                         }
+
+                        let serial = meta.map(|m| m.serial_number.clone()).unwrap_or_default();
+                        let health = meta
+                            .map(|m| m.health_status.clone())
+                            .unwrap_or_else(|| "Healthy".to_string());
+                        let temp = meta.and_then(|m| m.temperature_celsius);
 
                         drives.push(DriveInfo {
                             letter: drive_key,
@@ -452,6 +421,14 @@ impl StorageCollector {
                             used_bytes,
                             usage_percentage,
                             is_linux_or_raw: false,
+                            read_latency_ms: sample.read_latency_ms,
+                            write_latency_ms: sample.write_latency_ms,
+                            queue_depth: sample.queue_depth,
+                            iops_read: sample.read_iops,
+                            iops_write: sample.write_iops,
+                            health_status: health,
+                            temperature_celsius: temp,
+                            serial_number: serial,
                         });
                     }
                 }
@@ -475,7 +452,9 @@ impl StorageCollector {
                 };
 
                 let disk_key = format!("Disk {}", p.index);
-                let (r_speed, w_speed) = rates_map.get(&disk_key).copied().unwrap_or((0, 0));
+                let sample = rates_map.get(&disk_key).copied().unwrap_or_default();
+                let r_speed = sample.read_bytes_sec;
+                let w_speed = sample.write_bytes_sec;
 
                 total_read_sec += r_speed;
                 total_write_sec += w_speed;
@@ -492,6 +471,14 @@ impl StorageCollector {
                     used_bytes: (p.size_bytes as f64 * 0.55) as u64,
                     usage_percentage: 55.0,
                     is_linux_or_raw: true,
+                    read_latency_ms: sample.read_latency_ms,
+                    write_latency_ms: sample.write_latency_ms,
+                    queue_depth: sample.queue_depth,
+                    iops_read: sample.read_iops,
+                    iops_write: sample.write_iops,
+                    health_status: p.health_status.clone(),
+                    temperature_celsius: p.temperature_celsius,
+                    serial_number: p.serial_number.clone(),
                 });
             }
         }
@@ -577,9 +564,12 @@ fn query_all_physical_disks() -> Vec<PhysicalDiskMeta> {
                         bus_type: "SATA".to_string(),
                         is_ssd: true,
                         size_bytes: 0,
+                        serial_number: String::new(),
+                        health_status: "Healthy".to_string(),
+                        temperature_celsius: None,
                     };
 
-                    // 1. Query Device Descriptor for Model Name & BusType
+                    // 1. Query Device Descriptor for Model Name & BusType & SerialNumber
                     let mut query = STORAGE_PROPERTY_QUERY {
                         PropertyId: StorageDeviceProperty,
                         QueryType: PropertyStandardQuery,
@@ -632,9 +622,29 @@ fn query_all_physical_disks() -> Vec<PhysicalDiskMeta> {
                                 meta.model = model_str;
                             }
                         }
+
+                        // Serial number offset is at byte 24 in STORAGE_DEVICE_DESCRIPTOR
+                        let sn_offset = u32::from_ne_bytes([
+                            out_buf[24],
+                            out_buf[25],
+                            out_buf[26],
+                            out_buf[27],
+                        ]) as usize;
+                        if sn_offset > 0 && sn_offset < out_buf.len() {
+                            let mut end = sn_offset;
+                            while end < out_buf.len() && out_buf[end] != 0 {
+                                end += 1;
+                            }
+                            let sn_str = String::from_utf8_lossy(&out_buf[sn_offset..end])
+                                .trim()
+                                .to_string();
+                            if !sn_str.is_empty() {
+                                meta.serial_number = sn_str;
+                            }
+                        }
                     }
 
-                    // 2. Query Seek Penalty to detect SSD vs HDD (DEVICE_SEEK_PENALTY_DESCRIPTOR: Version(4), Size(4), IncursSeekPenalty(1))
+                    // 2. Query Seek Penalty to detect SSD vs HDD
                     let mut seek_query = STORAGE_PROPERTY_QUERY {
                         PropertyId: StorageDeviceSeekPenaltyProperty,
                         QueryType: PropertyStandardQuery,

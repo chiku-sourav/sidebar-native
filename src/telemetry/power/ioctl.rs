@@ -151,6 +151,10 @@ unsafe fn query_single_battery_handle(handle: HANDLE) -> Option<SingleBatteryInf
     {
         battery_info.designed_capacity_mwh = bi.DesignedCapacity;
         battery_info.full_charge_capacity_mwh = bi.FullChargedCapacity;
+        battery_info.low_capacity_alert_mwh = bi.DefaultAlert1;
+        battery_info.warning_capacity_alert_mwh = bi.DefaultAlert2;
+        battery_info.capacity_granularity_1_mwh = 100;
+        battery_info.capacity_granularity_2_mwh = 100;
         if bi.CycleCount > 0 && bi.CycleCount != u32::MAX {
             battery_info.cycle_count = Some(bi.CycleCount);
         }

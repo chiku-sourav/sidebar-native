@@ -1,6 +1,6 @@
 use windows::Win32::Graphics::Gdi::{SelectObject, SetTextColor, HDC};
 
-use crate::config::AppConfig;
+use crate::config::{AppConfig, TemperatureUnit};
 use crate::telemetry::process::format_speed;
 use crate::telemetry::TelemetrySnapshot;
 use crate::window::cards::CardRenderer;
@@ -32,7 +32,10 @@ impl CardRenderer for StorageCard {
         let mut total_h = 36.0; // Header + initial padding
         for (i, drive) in snapshot.storage.drives.iter().enumerate() {
             let model_lines = estimate_wrapped_lines(&drive.model_name, sidebar_w - 28, scale);
-            let drive_h = 76.0 + (model_lines as f32 * 18.0);
+            let mut drive_h = 76.0 + (model_lines as f32 * 18.0);
+            if config.adv_storage {
+                drive_h += 60.0; // 3 extra advanced rows per drive
+            }
             total_h += drive_h;
             if i + 1 < snapshot.storage.drives.len() {
                 total_h += 8.0;
@@ -147,6 +150,71 @@ impl CardRenderer for StorageCard {
                         ctx.pal.text_muted,
                         ctx.pal.accent_cyan,
                     );
+
+                    // Advanced Storage Details
+                    if config.adv_storage {
+                        inside_y += ctx.lh(20);
+                        let iops_str = format!(
+                            "R: {} IOPS • W: {} IOPS",
+                            format_num(drive.iops_read),
+                            format_num(drive.iops_write)
+                        );
+                        ctx.draw_key_value(
+                            hdc,
+                            x + 14,
+                            inside_y,
+                            w - 28,
+                            "IOPS (R/W)",
+                            &iops_str,
+                            ctx.pal.text_muted,
+                            ctx.pal.accent_cyan,
+                        );
+
+                        inside_y += ctx.lh(20);
+                        let lat_str = format!(
+                            "Lat: {:.1}ms R / {:.1}ms W • Q: {:.1}",
+                            drive.read_latency_ms, drive.write_latency_ms, drive.queue_depth
+                        );
+                        ctx.draw_key_value(
+                            hdc,
+                            x + 14,
+                            inside_y,
+                            w - 28,
+                            "Latency & Queue",
+                            &lat_str,
+                            ctx.pal.text_muted,
+                            ctx.pal.text_primary,
+                        );
+
+                        inside_y += ctx.lh(20);
+                        let temp_str = drive
+                            .temperature_celsius
+                            .map(|t| match config.temperature_unit {
+                                TemperatureUnit::Celsius => format!(" • {:.0}°C", t),
+                                TemperatureUnit::Fahrenheit => {
+                                    format!(" • {:.0}°F", (t * 9.0 / 5.0) + 32.0)
+                                }
+                            })
+                            .unwrap_or_default();
+                        let sn_suffix = if drive.serial_number.is_empty() {
+                            String::new()
+                        } else {
+                            format!(" • SN: {}", drive.serial_number)
+                        };
+                        let health_temp_str =
+                            format!("{}{}{}", drive.health_status, temp_str, sn_suffix);
+                        ctx.draw_key_value(
+                            hdc,
+                            x + 14,
+                            inside_y,
+                            w - 28,
+                            "Health & Info",
+                            &health_temp_str,
+                            ctx.pal.text_muted,
+                            ctx.pal.accent_green,
+                        );
+                    }
+
                     inside_y += ctx.lh(22);
 
                     if i + 1 < snapshot.storage.drives.len() {
@@ -155,5 +223,19 @@ impl CardRenderer for StorageCard {
                 }
             }
         }
+    }
+}
+
+fn format_num(val: u64) -> String {
+    if val >= 1_000_000 {
+        format!("{:.1}M", val as f64 / 1_000_000.0)
+    } else if val >= 10_000 {
+        format!("{:.1}k", val as f64 / 1000.0)
+    } else if val >= 1000 {
+        let s = val.to_string();
+        let len = s.len();
+        format!("{},{}", &s[..len - 3], &s[len - 3..])
+    } else {
+        val.to_string()
     }
 }

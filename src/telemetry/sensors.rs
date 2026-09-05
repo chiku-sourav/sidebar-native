@@ -37,7 +37,11 @@ impl SensorsCollector {
         // ==========================================
         // 1. CPU & THERMAL ZONE SENSORS
         // ==========================================
-        let cpu_temp = snapshot.temperature.cpu_package_temp.unwrap_or(48.0);
+        let cpu_temp_val = snapshot
+            .temperature
+            .cpu_package_temp
+            .map(&fmt_temp)
+            .unwrap_or_else(|| "N/A".to_string());
         list.push(HardwareSensor {
             category: "Processor (CPU)".to_string(),
             name: format!(
@@ -45,8 +49,8 @@ impl SensorsCollector {
                 snapshot.cpu.brand.chars().take(24).collect::<String>()
             ),
             sensor_type: "Temperature".to_string(),
-            value: fmt_temp(cpu_temp),
-            is_active: true,
+            value: cpu_temp_val,
+            is_active: snapshot.temperature.cpu_package_temp.is_some(),
         });
 
         if snapshot.cpu.frequency_mhz > 0 {
@@ -95,7 +99,8 @@ impl SensorsCollector {
             let active = gpu.is_active;
 
             if active {
-                let gpu_temp = snapshot.temperature.gpu_temp.unwrap_or(44.0);
+                let gpu_temp = gpu.temperature_c.or(snapshot.temperature.gpu_temp);
+                let gpu_temp_val = gpu_temp.map(&fmt_temp).unwrap_or_else(|| "N/A".to_string());
                 list.push(HardwareSensor {
                     category: "Graphics (GPU)".to_string(),
                     name: format!(
@@ -103,8 +108,8 @@ impl SensorsCollector {
                         gpu.name.chars().take(22).collect::<String>()
                     ),
                     sensor_type: "Temperature".to_string(),
-                    value: fmt_temp(gpu_temp),
-                    is_active: true,
+                    value: gpu_temp_val,
+                    is_active: gpu_temp.is_some(),
                 });
 
                 let vram_used_gb = gpu.vram_used_bytes as f32 / (1024.0 * 1024.0 * 1024.0);
@@ -204,20 +209,16 @@ impl SensorsCollector {
         });
 
         if config.show_disabled_hardware {
-            // Check for additional virtual/disconnected interfaces
-            let common_virtual_adapters = [
-                "Bluetooth Device (PAN)",
-                "Hyper-V Virtual Ethernet",
-                "WAN Miniport (Network Monitor)",
-            ];
-            for adapter in common_virtual_adapters {
-                list.push(HardwareSensor {
-                    category: "Network Adapters".to_string(),
-                    name: adapter.to_string(),
-                    sensor_type: "Network Link".to_string(),
-                    value: "Disabled".to_string(),
-                    is_active: false,
-                });
+            for adapter in &snapshot.network.adapters {
+                if !adapter.is_up {
+                    list.push(HardwareSensor {
+                        category: "Network Adapters".to_string(),
+                        name: adapter.display_name.clone(),
+                        sensor_type: "Network Link".to_string(),
+                        value: "Disconnected".to_string(),
+                        is_active: false,
+                    });
+                }
             }
         }
 
@@ -235,19 +236,6 @@ impl SensorsCollector {
             },
             is_active: true,
         });
-
-        if config.show_disabled_hardware {
-            let common_audio = ["Realtek Digital Audio (S/PDIF)", "HDMI / DisplayPort Audio"];
-            for dev in common_audio {
-                list.push(HardwareSensor {
-                    category: "Audio Endpoints".to_string(),
-                    name: dev.to_string(),
-                    sensor_type: "Audio Playback".to_string(),
-                    value: "Unplugged".to_string(),
-                    is_active: false,
-                });
-            }
-        }
 
         // ==========================================
         // 6. POWER & BATTERY SENSORS
@@ -386,6 +374,203 @@ impl SensorsCollector {
             ),
             is_active: true,
         });
+
+        // ==========================================
+        // 8. ADVANCED HARDWARE & FIRMWARE SENSORS (gated by config.adv_sensors)
+        // ==========================================
+        if config.adv_sensors {
+            // CPU Advanced
+            list.push(HardwareSensor {
+                category: "Processor (CPU)".to_string(),
+                name: "CPU Topology".to_string(),
+                sensor_type: "Topology".to_string(),
+                value: format!(
+                    "{} Phys • {} Log • {} Socket",
+                    snapshot.cpu.physical_core_count,
+                    snapshot.cpu.core_count,
+                    snapshot.cpu.socket_count
+                ),
+                is_active: true,
+            });
+            list.push(HardwareSensor {
+                category: "Processor (CPU)".to_string(),
+                name: "Base / Boost Clock".to_string(),
+                sensor_type: "Clock Speed".to_string(),
+                value: format!(
+                    "{:.2} GHz / {:.2} GHz",
+                    snapshot.cpu.base_clock_mhz as f64 / 1000.0,
+                    snapshot.cpu.boost_clock_mhz as f64 / 1000.0
+                ),
+                is_active: true,
+            });
+            list.push(HardwareSensor {
+                category: "Processor (CPU)".to_string(),
+                name: "Context Switches & IRQs".to_string(),
+                sensor_type: "System Rate".to_string(),
+                value: format!(
+                    "{}/s Ctx • {}/s IRQ",
+                    snapshot.cpu.context_switches_per_sec, snapshot.cpu.interrupts_per_sec
+                ),
+                is_active: true,
+            });
+
+            // RAM Advanced
+            list.push(HardwareSensor {
+                category: "System Memory".to_string(),
+                name: "Hardware Reserved Memory".to_string(),
+                sensor_type: "Memory".to_string(),
+                value: format!(
+                    "{:.0} MB",
+                    snapshot.ram.hardware_reserved_bytes as f32 / (1024.0 * 1024.0)
+                ),
+                is_active: true,
+            });
+            list.push(HardwareSensor {
+                category: "System Memory".to_string(),
+                name: "Non-Paged Kernel Pool".to_string(),
+                sensor_type: "Memory".to_string(),
+                value: format!(
+                    "{:.0} MB",
+                    snapshot.ram.nonpaged_pool_bytes as f32 / (1024.0 * 1024.0)
+                ),
+                is_active: true,
+            });
+            list.push(HardwareSensor {
+                category: "System Memory".to_string(),
+                name: "Paged Kernel Pool".to_string(),
+                sensor_type: "Memory".to_string(),
+                value: format!(
+                    "{:.1} GB",
+                    snapshot.ram.paged_pool_bytes as f32 / (1024.0 * 1024.0 * 1024.0)
+                ),
+                is_active: true,
+            });
+            list.push(HardwareSensor {
+                category: "System Memory".to_string(),
+                name: "Standby Cache / Modified".to_string(),
+                sensor_type: "Memory".to_string(),
+                value: format!(
+                    "{:.1} GB / {:.0} MB",
+                    snapshot.ram.standby_bytes as f32 / (1024.0 * 1024.0 * 1024.0),
+                    snapshot.ram.modified_bytes as f32 / (1024.0 * 1024.0)
+                ),
+                is_active: true,
+            });
+            list.push(HardwareSensor {
+                category: "System Memory".to_string(),
+                name: "System File Cache".to_string(),
+                sensor_type: "Memory".to_string(),
+                value: format!(
+                    "{:.1} GB",
+                    snapshot.ram.system_cache_bytes as f32 / (1024.0 * 1024.0 * 1024.0)
+                ),
+                is_active: true,
+            });
+
+            // GPU Advanced
+            for gpu in &snapshot.gpu.gpus {
+                if gpu.is_active {
+                    list.push(HardwareSensor {
+                        category: "Graphics (GPU)".to_string(),
+                        name: format!(
+                            "{} 3D & Copy Engine",
+                            gpu.name.chars().take(20).collect::<String>()
+                        ),
+                        sensor_type: "Load".to_string(),
+                        value: format!(
+                            "3D: {:.0}% • Copy: {:.0}%",
+                            gpu.gpu_usage_pct, gpu.copy_engine_pct
+                        ),
+                        is_active: true,
+                    });
+                    list.push(HardwareSensor {
+                        category: "Graphics (GPU)".to_string(),
+                        name: format!(
+                            "{} Video Encode/Decode",
+                            gpu.name.chars().take(20).collect::<String>()
+                        ),
+                        sensor_type: "Load".to_string(),
+                        value: format!(
+                            "Enc: {:.0}% • Dec: {:.0}%",
+                            gpu.video_encode_pct, gpu.video_decode_pct
+                        ),
+                        is_active: true,
+                    });
+                    if !gpu.driver_version.is_empty() {
+                        list.push(HardwareSensor {
+                            category: "Graphics (GPU)".to_string(),
+                            name: format!(
+                                "{} Driver Version",
+                                gpu.name.chars().take(20).collect::<String>()
+                            ),
+                            sensor_type: "Driver".to_string(),
+                            value: format!("v{}", gpu.driver_version),
+                            is_active: true,
+                        });
+                    }
+                }
+            }
+
+            // Storage Advanced
+            for drive in &snapshot.storage.drives {
+                list.push(HardwareSensor {
+                    category: "Storage & Disks".to_string(),
+                    name: format!("Drive ({}) IOPS Rate", drive.letter),
+                    sensor_type: "I/O Rate".to_string(),
+                    value: format!("R: {} IOPS • W: {} IOPS", drive.iops_read, drive.iops_write),
+                    is_active: true,
+                });
+                list.push(HardwareSensor {
+                    category: "Storage & Disks".to_string(),
+                    name: format!("Drive ({}) Latency & Queue", drive.letter),
+                    sensor_type: "Latency".to_string(),
+                    value: format!(
+                        "{:.1}ms R / {:.1}ms W • Q: {:.1}",
+                        drive.read_latency_ms, drive.write_latency_ms, drive.queue_depth
+                    ),
+                    is_active: true,
+                });
+            }
+
+            // Firmware & Platform Category
+            if let Some(bios) = &snapshot.bios {
+                list.push(HardwareSensor {
+                    category: "Firmware & Platform".to_string(),
+                    name: "BIOS Firmware".to_string(),
+                    sensor_type: "Firmware".to_string(),
+                    value: format!("{} v{} ({})", bios.vendor, bios.version, bios.release_date),
+                    is_active: true,
+                });
+                list.push(HardwareSensor {
+                    category: "Firmware & Platform".to_string(),
+                    name: "UEFI Secure Boot".to_string(),
+                    sensor_type: "Security".to_string(),
+                    value: bios.secure_boot.clone(),
+                    is_active: true,
+                });
+                let is_tpm_active =
+                    bios.tpm_version != "Not Detected" && bios.tpm_version != "None";
+                let tpm_val = if is_tpm_active {
+                    format!("TPM {}", bios.tpm_version)
+                } else {
+                    "Not Detected".to_string()
+                };
+                list.push(HardwareSensor {
+                    category: "Firmware & Platform".to_string(),
+                    name: "Trusted Platform Module (TPM)".to_string(),
+                    sensor_type: "Security".to_string(),
+                    value: tpm_val,
+                    is_active: is_tpm_active,
+                });
+                list.push(HardwareSensor {
+                    category: "Firmware & Platform".to_string(),
+                    name: "Motherboard / BaseBoard".to_string(),
+                    sensor_type: "Mainboard".to_string(),
+                    value: format!("{} {}", bios.motherboard_mfg, bios.motherboard_product),
+                    is_active: true,
+                });
+            }
+        }
 
         list
     }
