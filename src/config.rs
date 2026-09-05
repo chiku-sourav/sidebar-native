@@ -160,6 +160,38 @@ pub struct AppConfig {
     // Power Management
     #[serde(default)]
     pub caffeine_enabled: bool,
+
+    // Per-Card Advanced Detail Toggles (default: false — no change for existing users)
+    #[serde(default)]
+    pub adv_cpu: bool,
+    #[serde(default)]
+    pub adv_gpu: bool,
+    #[serde(default)]
+    pub adv_ram: bool,
+    #[serde(default)]
+    pub adv_storage: bool,
+    #[serde(default)]
+    pub adv_network: bool,
+    #[serde(default)]
+    pub adv_battery: bool,
+    #[serde(default)]
+    pub adv_virtual_memory: bool,
+    #[serde(default)]
+    pub adv_sensors: bool,
+    #[serde(default)]
+    pub adv_bios: bool,
+
+    // First-Run
+    #[serde(default = "default_true")]
+    pub first_run: bool,
+
+    // Advanced Caffeine Options
+    #[serde(default = "default_true")]
+    pub caffeine_display_on: bool,
+    #[serde(default)]
+    pub caffeine_session_only: bool,
+    #[serde(default)]
+    pub caffeine_timeout_mins: u32,
 }
 
 impl Default for AppConfig {
@@ -217,6 +249,19 @@ impl Default for AppConfig {
             show_gpu_temperatures: true,
 
             caffeine_enabled: false,
+            adv_cpu: false,
+            adv_gpu: false,
+            adv_ram: false,
+            adv_storage: false,
+            adv_network: false,
+            adv_battery: false,
+            adv_virtual_memory: false,
+            adv_sensors: false,
+            adv_bios: false,
+            first_run: true,
+            caffeine_display_on: true,
+            caffeine_session_only: false,
+            caffeine_timeout_mins: 0,
         }
     }
 }

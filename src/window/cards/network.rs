@@ -36,7 +36,8 @@ impl CardRenderer for NetworkCard {
         if active_adapters.is_empty() {
             (110.0 * scale).round() as i32
         } else {
-            ((52.0 + (active_adapters.len() as f32 * 46.0)) * scale).round() as i32
+            let per_adapter = if config.adv_network { 86.0 } else { 46.0 };
+            ((52.0 + (active_adapters.len() as f32 * per_adapter)) * scale).round() as i32
         }
     }
 
@@ -83,12 +84,18 @@ impl CardRenderer for NetworkCard {
                     };
                     ctx.draw_colored_dot(hdc, x + 14, inside_y + 4, dot_col);
 
+                    let title_name = if !adapter.display_name.is_empty() {
+                        &adapter.display_name
+                    } else {
+                        &adapter.name
+                    };
+
                     ctx.draw_key_value(
                         hdc,
                         x + 24,
                         inside_y,
                         w - 38,
-                        &adapter.name,
+                        title_name,
                         &adapter.ip,
                         if adapter.is_up {
                             ctx.pal.text_primary
@@ -116,6 +123,64 @@ impl CardRenderer for NetworkCard {
                         ctx.pal.accent_cyan,
                     );
 
+                    // Advanced Network Details
+                    if config.adv_network {
+                        inside_y += ctx.lh(20);
+                        let speed_gbps = if adapter.link_speed_bps >= 1_000_000_000 {
+                            format!(
+                                "{:.1} Gbps",
+                                adapter.link_speed_bps as f64 / 1_000_000_000.0
+                            )
+                        } else if adapter.link_speed_bps >= 1_000_000 {
+                            format!("{:.0} Mbps", adapter.link_speed_bps as f64 / 1_000_000.0)
+                        } else {
+                            "1.0 Gbps".to_string()
+                        };
+
+                        let mac_display = if adapter.mac_address.is_empty() {
+                            "Virtual".to_string()
+                        } else {
+                            adapter.mac_address.clone()
+                        };
+
+                        let link_type_str = format!(
+                            "{} • {} • {}",
+                            adapter.adapter_type, speed_gbps, mac_display
+                        );
+                        ctx.draw_key_value(
+                            hdc,
+                            x + 24,
+                            inside_y,
+                            w - 38,
+                            "Link & Physical",
+                            &link_type_str,
+                            ctx.pal.text_muted,
+                            ctx.pal.text_primary,
+                        );
+
+                        inside_y += ctx.lh(20);
+                        let sig_str = adapter
+                            .signal_strength_pct
+                            .map(|s| format!(" • Signal: {}%", s))
+                            .unwrap_or_default();
+                        let pkts_str = format!(
+                            "Pkts: {}↓ {}↑{}",
+                            format_num(adapter.packets_recv_per_sec),
+                            format_num(adapter.packets_sent_per_sec),
+                            sig_str
+                        );
+                        ctx.draw_key_value(
+                            hdc,
+                            x + 24,
+                            inside_y,
+                            w - 38,
+                            "Packets & Quality",
+                            &pkts_str,
+                            ctx.pal.text_muted,
+                            ctx.pal.text_muted,
+                        );
+                    }
+
                     inside_y += ctx.lh(23);
                     if i + 1 < adapters.len() {
                         inside_y += ctx.lh(3);
@@ -123,5 +188,19 @@ impl CardRenderer for NetworkCard {
                 }
             }
         }
+    }
+}
+
+fn format_num(val: u64) -> String {
+    if val >= 1_000_000 {
+        format!("{:.1}M", val as f64 / 1_000_000.0)
+    } else if val >= 10_000 {
+        format!("{:.1}k", val as f64 / 1000.0)
+    } else if val >= 1000 {
+        let s = val.to_string();
+        let len = s.len();
+        format!("{},{}", &s[..len - 3], &s[len - 3..])
+    } else {
+        val.to_string()
     }
 }

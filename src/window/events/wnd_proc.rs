@@ -216,6 +216,27 @@ pub unsafe extern "system" fn wnd_proc(
                 return LRESULT(0);
             }
 
+            // Hit-test WelcomeCard [ Got it — Dismiss ] button
+            if let Some(state) = get_app_state() {
+                let mut cfg = state.config.lock().unwrap();
+                if cfg.first_run {
+                    let scroll_y = state.scroll_offset_y.load(Ordering::Relaxed);
+                    let scale = cfg.font_size.scale();
+                    let card_top = 52 - scroll_y;
+                    let btn_top = card_top + ((136.0 - 45.0) * scale).round() as i32;
+                    let btn_bottom = btn_top + (34.0 * scale).round() as i32;
+                    let btn_w = (160.0 * scale).round() as i32;
+                    if x >= 14 && x <= (14 + btn_w) && y >= btn_top && y <= btn_bottom {
+                        log_info!("User clicked [ Got it — Dismiss ] on WelcomeCard.");
+                        cfg.first_run = false;
+                        let _ = cfg.save();
+                        drop(cfg);
+                        let _ = InvalidateRect(hwnd, None, false);
+                        return LRESULT(0);
+                    }
+                }
+            }
+
             LRESULT(0)
         }
 
@@ -227,6 +248,28 @@ pub unsafe extern "system" fn wnd_proc(
                 if config.auto_pause_fullscreen {
                     let is_fs = FullscreenDetector::is_foreground_fullscreen();
                     state.telemetry.set_paused(is_fs);
+                }
+
+                // Check Caffeine Mode auto-timeout
+                if config.caffeine_enabled && config.caffeine_timeout_mins > 0 {
+                    if let Ok(mut start_guard) = state.caffeine_start_time.try_lock() {
+                        if let Some(start_time) = *start_guard {
+                            let timeout_secs = config.caffeine_timeout_mins as u64 * 60;
+                            if start_time.elapsed().as_secs() >= timeout_secs {
+                                log_info!(
+                                    "Caffeine auto-timeout elapsed ({} mins). Restoring normal power state.",
+                                    config.caffeine_timeout_mins
+                                );
+                                windows::Win32::System::Power::SetThreadExecutionState(
+                                    windows::Win32::System::Power::ES_CONTINUOUS,
+                                );
+                                *start_guard = None;
+                                let mut cfg = state.config.lock().unwrap();
+                                cfg.caffeine_enabled = false;
+                                let _ = cfg.save();
+                            }
+                        }
+                    }
                 }
 
                 let snapshot = state.telemetry.snapshot().read().unwrap().clone();

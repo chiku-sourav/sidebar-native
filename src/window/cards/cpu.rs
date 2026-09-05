@@ -29,7 +29,10 @@ impl CardRenderer for CpuCard {
         let extra_h = brand_lines.saturating_sub(1) as f32 * 18.0;
 
         let has_core_loads = config.show_core_loads && snapshot.cpu.core_usages.len() > 1;
-        let base_h = if has_core_loads { 156.0 } else { 132.0 };
+        let mut base_h = if has_core_loads { 156.0 } else { 132.0 };
+        if config.adv_cpu {
+            base_h += 88.0; // 4 extra advanced detail rows
+        }
         ((base_h + extra_h) * scale).round() as i32
     }
 
@@ -91,21 +94,26 @@ impl CardRenderer for CpuCard {
             );
 
             inside_y += ctx.lh(22);
-            let cpu_temp_val = snapshot.temperature.cpu_package_temp.unwrap_or(48.0);
-            let temp_color = if cpu_temp_val >= 80.0 {
-                ctx.pal.accent_red
-            } else if cpu_temp_val >= 65.0 {
-                ctx.pal.accent_amber
-            } else {
-                ctx.pal.accent_green
-            };
+            let (temp_str, temp_color) =
+                if let Some(cpu_temp_val) = snapshot.temperature.cpu_package_temp {
+                    let color = if cpu_temp_val >= 80.0 {
+                        ctx.pal.accent_red
+                    } else if cpu_temp_val >= 65.0 {
+                        ctx.pal.accent_amber
+                    } else {
+                        ctx.pal.accent_green
+                    };
 
-            let temp_str = match config.temperature_unit {
-                TemperatureUnit::Celsius => format!("{:.0} °C", cpu_temp_val),
-                TemperatureUnit::Fahrenheit => {
-                    format!("{:.0} °F", (cpu_temp_val * 9.0 / 5.0) + 32.0)
-                }
-            };
+                    let s = match config.temperature_unit {
+                        TemperatureUnit::Celsius => format!("{:.0} °C", cpu_temp_val),
+                        TemperatureUnit::Fahrenheit => {
+                            format!("{:.0} °F", (cpu_temp_val * 9.0 / 5.0) + 32.0)
+                        }
+                    };
+                    (s, color)
+                } else {
+                    ("N/A".to_string(), ctx.pal.text_muted)
+                };
 
             ctx.draw_key_value(
                 hdc,
@@ -144,6 +152,104 @@ impl CardRenderer for CpuCard {
                     ctx.pal.progress_track,
                 );
             }
+
+            // Advanced CPU Details
+            if config.adv_cpu {
+                inside_y += ctx.lh(22);
+                let socket_suffix = if snapshot.cpu.socket_count > 1 {
+                    "s"
+                } else {
+                    ""
+                };
+                let topology_str = format!(
+                    "{} Physical • {} Logical • {} Socket{}",
+                    snapshot.cpu.physical_core_count,
+                    snapshot.cpu.core_count,
+                    snapshot.cpu.socket_count,
+                    socket_suffix
+                );
+                ctx.draw_key_value(
+                    hdc,
+                    x + 14,
+                    inside_y,
+                    w - 28,
+                    "Topology",
+                    &topology_str,
+                    ctx.pal.text_muted,
+                    ctx.pal.text_primary,
+                );
+
+                inside_y += ctx.lh(20);
+                let (base_str, boost_str) = if config.use_ghz {
+                    (
+                        format!("{:.2} GHz", snapshot.cpu.base_clock_mhz as f64 / 1000.0),
+                        format!("{:.2} GHz", snapshot.cpu.boost_clock_mhz as f64 / 1000.0),
+                    )
+                } else {
+                    (
+                        format!("{} MHz", snapshot.cpu.base_clock_mhz),
+                        format!("{} MHz", snapshot.cpu.boost_clock_mhz),
+                    )
+                };
+                let clocks_str = format!("Base: {} • Boost: {}", base_str, boost_str);
+                ctx.draw_key_value(
+                    hdc,
+                    x + 14,
+                    inside_y,
+                    w - 28,
+                    "Base / Boost Clock",
+                    &clocks_str,
+                    ctx.pal.text_muted,
+                    ctx.pal.text_primary,
+                );
+
+                inside_y += ctx.lh(20);
+                let user_kernel_str = format!(
+                    "User: {:.0}% • Kernel: {:.0}%",
+                    snapshot.cpu.user_pct, snapshot.cpu.privileged_pct
+                );
+                ctx.draw_key_value(
+                    hdc,
+                    x + 14,
+                    inside_y,
+                    w - 28,
+                    "User / Kernel Load",
+                    &user_kernel_str,
+                    ctx.pal.text_muted,
+                    ctx.pal.accent_cyan,
+                );
+
+                inside_y += ctx.lh(20);
+                let ctx_irq_str = format!(
+                    "Ctx/s: {} • IRQ/s: {}",
+                    format_num(snapshot.cpu.context_switches_per_sec),
+                    format_num(snapshot.cpu.interrupts_per_sec)
+                );
+                ctx.draw_key_value(
+                    hdc,
+                    x + 14,
+                    inside_y,
+                    w - 28,
+                    "Context / Interrupts",
+                    &ctx_irq_str,
+                    ctx.pal.text_muted,
+                    ctx.pal.text_muted,
+                );
+            }
         }
+    }
+}
+
+fn format_num(val: u64) -> String {
+    if val >= 1_000_000 {
+        format!("{:.1}M", val as f64 / 1_000_000.0)
+    } else if val >= 10_000 {
+        format!("{:.1}k", val as f64 / 1000.0)
+    } else if val >= 1000 {
+        let s = val.to_string();
+        let len = s.len();
+        format!("{},{}", &s[..len - 3], &s[len - 3..])
+    } else {
+        val.to_string()
     }
 }

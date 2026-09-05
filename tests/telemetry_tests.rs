@@ -241,6 +241,7 @@ fn test_drive_media_types_and_wsl_detection() {
         used_bytes: 1024 * 1024 * 1024 * 900,
         usage_percentage: 90.0,
         is_linux_or_raw: false,
+        ..Default::default()
     };
 
     let linux_sata_drive = DriveInfo {
@@ -255,6 +256,7 @@ fn test_drive_media_types_and_wsl_detection() {
         used_bytes: 60_000_000_000,
         usage_percentage: 50.0,
         is_linux_or_raw: true,
+        ..Default::default()
     };
 
     let wsl_drive = DriveInfo {
@@ -269,6 +271,7 @@ fn test_drive_media_types_and_wsl_detection() {
         used_bytes: 70_000_000_000,
         usage_percentage: 28.0,
         is_linux_or_raw: true,
+        ..Default::default()
     };
 
     assert_eq!(nvme_drive.drive_type, "NVMe SSD");
@@ -288,6 +291,7 @@ fn test_network_adapters_traffic_ranking() {
             total_received: 0,
             total_transmitted: 0,
             is_up: false,
+            ..Default::default()
         },
         NetworkAdapterInfo {
             name: "Wi-Fi".to_string(),
@@ -297,6 +301,7 @@ fn test_network_adapters_traffic_ranking() {
             total_received: 1024 * 1024 * 1024 * 10,
             total_transmitted: 1024 * 1024 * 1024 * 2,
             is_up: true,
+            ..Default::default()
         },
         NetworkAdapterInfo {
             name: "vEthernet (WSL)".to_string(),
@@ -306,6 +311,7 @@ fn test_network_adapters_traffic_ranking() {
             total_received: 1024 * 1024 * 50,
             total_transmitted: 1024 * 1024 * 10,
             is_up: true,
+            ..Default::default()
         },
     ];
 
@@ -377,7 +383,9 @@ fn test_battery_metrics_and_health_calculations() {
             is_charging: false,
             is_discharging: true,
             is_critical: false,
+            ..Default::default()
         }],
+        ..Default::default()
     };
 
     assert!(battery.has_battery);
@@ -425,6 +433,7 @@ fn test_sensors_collector_with_battery() {
             manufacture_date: None,
             power_state_description: "Plugged in (Charging)".to_string(),
             batteries: vec![],
+            ..Default::default()
         },
         ..Default::default()
     };
@@ -605,5 +614,243 @@ fn test_storage_collector_live_query() {
             d.total_bytes as f64 / (1024.0 * 1024.0 * 1024.0),
         );
         assert!(d.total_bytes > 0, "Drive total bytes should be > 0");
+    }
+}
+
+#[test]
+fn test_advanced_config_defaults() {
+    let cfg = AppConfig::default();
+    assert!(cfg.first_run);
+    assert!(!cfg.adv_cpu);
+    assert!(!cfg.adv_gpu);
+    assert!(!cfg.adv_ram);
+    assert!(!cfg.adv_storage);
+    assert!(!cfg.adv_network);
+    assert!(!cfg.adv_battery);
+    assert!(!cfg.adv_virtual_memory);
+    assert!(!cfg.adv_sensors);
+    assert!(!cfg.adv_bios);
+    assert_eq!(cfg.caffeine_timeout_mins, 0);
+    assert!(cfg.caffeine_display_on);
+    assert!(!cfg.caffeine_session_only);
+}
+
+#[test]
+fn test_bios_collector_live_query() {
+    use sidevitals::telemetry::{BiosCollector, TelemetryCollector, TelemetrySnapshot};
+
+    let mut collector = BiosCollector::new();
+    let mut snapshot = TelemetrySnapshot::default();
+    let cfg = AppConfig::default();
+    collector.update(&mut snapshot, &cfg);
+
+    assert!(snapshot.bios.is_some());
+    let bios = snapshot.bios.unwrap();
+    println!("BIOS Vendor: {}, Version: {}", bios.vendor, bios.version);
+    assert!(!bios.vendor.is_empty());
+}
+
+#[test]
+fn test_adv_sensors_enrichment() {
+    use sidevitals::telemetry::sensors::SensorsCollector;
+    use sidevitals::telemetry::TelemetrySnapshot;
+
+    let snapshot = TelemetrySnapshot::default();
+    let mut cfg_basic = AppConfig::default();
+    cfg_basic.adv_sensors = false;
+    let mut collector = SensorsCollector::new();
+
+    let sensors_basic = collector.collect(&snapshot, &cfg_basic);
+
+    let mut cfg_adv = AppConfig::default();
+    cfg_adv.adv_sensors = true;
+    let sensors_adv = collector.collect(&snapshot, &cfg_adv);
+
+    assert!(
+        sensors_adv.len() > sensors_basic.len(),
+        "adv_sensors should produce additional sensor rows"
+    );
+    assert!(
+        sensors_adv
+            .iter()
+            .any(|s| s.category == "Processor (CPU)" && s.name == "CPU Topology"),
+        "Expected CPU Topology sensor when adv_sensors is true"
+    );
+}
+
+#[test]
+fn test_temperature_collector_live_query() {
+    use sidevitals::telemetry::temperature::TemperatureCollector;
+
+    let mut collector = TemperatureCollector::new();
+    let metrics = collector.collect();
+
+    // Verify CPU temp if detected
+    if let Some(cpu) = metrics.cpu_package_temp {
+        assert!(
+            cpu > 0.0 && cpu < 130.0,
+            "CPU temperature {:.1}°C is outside valid range",
+            cpu
+        );
+    }
+
+    // Verify GPU temp if detected
+    if let Some(gpu) = metrics.gpu_temp {
+        assert!(
+            gpu > 0.0 && gpu < 130.0,
+            "GPU temperature {:.1}°C is outside valid range",
+            gpu
+        );
+    }
+
+    // Verify sensors list
+    for s in &metrics.sensors {
+        assert!(
+            s.temperature_c > 0.0 && s.temperature_c < 130.0,
+            "Sensor {} temp {:.1}°C is out of bounds",
+            s.label,
+            s.temperature_c
+        );
+    }
+}
+
+#[test]
+fn test_sensors_collector_temperature_none_handling() {
+    use sidevitals::telemetry::gpu::GpuInfo;
+    use sidevitals::telemetry::sensors::SensorsCollector;
+    use sidevitals::telemetry::TelemetrySnapshot;
+
+    let mut snapshot = TelemetrySnapshot::default();
+    snapshot.cpu.brand = "AMD Ryzen 7".to_string();
+    snapshot.gpu.gpus.push(GpuInfo {
+        name: "NVIDIA RTX".to_string(),
+        is_active: true,
+        ..Default::default()
+    });
+
+    let cfg = AppConfig::default();
+    let mut collector = SensorsCollector::new();
+
+    // Case 1: Temperatures are None (no hardware sensors available)
+    snapshot.temperature.cpu_package_temp = None;
+    snapshot.temperature.gpu_temp = None;
+    let sensors_none = collector.collect(&snapshot, &cfg);
+
+    let cpu_sensor = sensors_none
+        .iter()
+        .find(|s| s.category == "Processor (CPU)" && s.sensor_type == "Temperature")
+        .expect("CPU temperature sensor entry should exist");
+    assert_eq!(cpu_sensor.value, "N/A");
+    assert!(!cpu_sensor.is_active);
+
+    let gpu_sensor = sensors_none
+        .iter()
+        .find(|s| s.category == "Graphics (GPU)" && s.sensor_type == "Temperature")
+        .expect("GPU temperature sensor entry should exist");
+    assert_eq!(gpu_sensor.value, "N/A");
+    assert!(!gpu_sensor.is_active);
+
+    // Case 2: Real temperatures provided
+    snapshot.temperature.cpu_package_temp = Some(54.0);
+    snapshot.temperature.gpu_temp = Some(45.0);
+    let sensors_some = collector.collect(&snapshot, &cfg);
+
+    let cpu_sensor_some = sensors_some
+        .iter()
+        .find(|s| s.category == "Processor (CPU)" && s.sensor_type == "Temperature")
+        .unwrap();
+    assert_eq!(cpu_sensor_some.value, "54 °C");
+    assert!(cpu_sensor_some.is_active);
+
+    let gpu_sensor_some = sensors_some
+        .iter()
+        .find(|s| s.category == "Graphics (GPU)" && s.sensor_type == "Temperature")
+        .unwrap();
+    assert_eq!(gpu_sensor_some.value, "45 °C");
+    assert!(gpu_sensor_some.is_active);
+}
+
+#[test]
+fn test_gpu_collector_per_adapter_telemetry() {
+    use sidevitals::telemetry::gpu::GpuCollector;
+
+    let mut collector = GpuCollector::new();
+    let metrics = collector.collect();
+
+    println!("Discovered {} GPUs:", metrics.gpus.len());
+    for (i, gpu) in metrics.gpus.iter().enumerate() {
+        println!(
+            "GPU #{}: '{}' ({}) - LUID: ({}, {}), Type: {}, Dedicated VRAM: {:.2} GB, Shared: {:.2} GB, Usage: {:.1}%, Temp: {:?}, PCIe: {:?}",
+            i,
+            gpu.name,
+            gpu.vendor,
+            gpu.luid.0,
+            gpu.luid.1,
+            gpu.gpu_type,
+            gpu.vram_total_bytes as f64 / (1024.0 * 1024.0 * 1024.0),
+            gpu.shared_total_bytes as f64 / (1024.0 * 1024.0 * 1024.0),
+            gpu.gpu_usage_pct,
+            gpu.temperature_c,
+            gpu.pcie_gen.zip(gpu.pcie_width)
+        );
+
+        if gpu.is_active {
+            assert!(
+                gpu.shared_total_bytes > 0,
+                "Shared memory total should be > 0"
+            );
+        }
+
+        if gpu.gpu_type.contains("Integrated") {
+            assert!(
+                gpu.pcie_gen.is_none() || gpu.pcie_width.is_none(),
+                "Integrated GPU should not have discrete PCIe gen/width assigned"
+            );
+        }
+    }
+
+    let active_gpus: Vec<_> = metrics.gpus.iter().filter(|g| g.is_active).collect();
+    if active_gpus.len() > 1 {
+        let luids: std::collections::HashSet<_> = active_gpus.iter().map(|g| g.luid).collect();
+        assert_eq!(
+            luids.len(),
+            active_gpus.len(),
+            "Active GPUs should each have a unique LUID"
+        );
+    }
+}
+
+#[test]
+fn test_dummy_data_elimination() {
+    use sidevitals::telemetry::bios::BiosCollector;
+    use sidevitals::telemetry::ram::RamCollector;
+    use sidevitals::telemetry::storage::StorageCollector;
+    use sidevitals::telemetry::TelemetryCollector;
+
+    // 1. Storage: no fake 36.0 + 2*i
+    let mut storage_col = StorageCollector::new();
+    let storage_metrics = storage_col.collect();
+    for drive in &storage_metrics.drives {
+        if let Some(t) = drive.temperature_celsius {
+            assert!(t > 0.0 && t < 120.0, "Drive temp out of bounds: {}", t);
+        }
+    }
+
+    // 2. RAM: page faults should not be synthetic ~8395 calculation
+    let mut ram_col = RamCollector::new();
+    let ram_metrics = ram_col.collect();
+    assert_ne!(
+        ram_metrics.page_faults_per_sec, 8395,
+        "Page faults should be real PDH, not synthetic 8395"
+    );
+
+    // 3. BIOS: TPM version should be real
+    let mut bios_col = BiosCollector::new();
+    let mut snapshot = sidevitals::telemetry::TelemetrySnapshot::default();
+    let cfg = AppConfig::default();
+    bios_col.update(&mut snapshot, &cfg);
+    if let Some(bios) = &snapshot.bios {
+        println!("BIOS TPM version: {}", bios.tpm_version);
+        assert!(!bios.tpm_version.is_empty());
     }
 }

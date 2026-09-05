@@ -135,6 +135,11 @@ fn main() {
             dpi: AtomicU32::new(init_dpi),
             win_width: AtomicI32::new(win_w),
             win_height: AtomicI32::new(win_h),
+            caffeine_start_time: Mutex::new(if config.caffeine_enabled {
+                Some(std::time::Instant::now())
+            } else {
+                None
+            }),
         };
         let _ = init_app_state(state);
 

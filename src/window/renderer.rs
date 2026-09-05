@@ -12,7 +12,8 @@ use windows::Win32::Graphics::Gdi::{
 use super::cards::{
     audio::AudioCard, battery::BatteryCard, cpu::CpuCard, gpu::GpuCard, header::HeaderCard,
     network::NetworkCard, processes::ProcessesCard, ram::RamCard, sensors::SensorsCard,
-    storage::StorageCard, system::SystemCard, virtual_memory::VirtualMemoryCard, CardRenderer,
+    storage::StorageCard, system::SystemCard, virtual_memory::VirtualMemoryCard,
+    welcome::WelcomeCard, CardRenderer,
 };
 use super::context::{RenderContext, ThemePalette};
 use crate::config::AppConfig;
@@ -50,6 +51,7 @@ impl UIRenderer {
 
         // Register cards following Open/Closed & Dependency Inversion Principles
         let cards: Vec<Box<dyn CardRenderer>> = vec![
+            Box::new(WelcomeCard::new()),
             Box::new(HeaderCard::new()),
             Box::new(CpuCard::new()),
             Box::new(RamCard::new()),
@@ -367,10 +369,12 @@ impl UIRenderer {
             SelectObject(mem_dc, old_pen);
             DeleteObject(line_pen);
 
-            // Title "DIAGNOSTICS"
+            // Branded SideVitals with cyan dot and app version
+            ctx.draw_colored_dot(mem_dc, pad_x + 2, 17, pal.accent_cyan);
             SelectObject(mem_dc, self.hfont_title);
-            SetTextColor(mem_dc, pal.text_muted);
-            ctx.draw_text(mem_dc, pad_x + 2, 11, "DIAGNOSTICS");
+            SetTextColor(mem_dc, pal.text_primary);
+            let brand_text = format!("SideVitals v{}", env!("CARGO_PKG_VERSION"));
+            ctx.draw_text(mem_dc, pad_x + 14, 11, &brand_text);
 
             // Close button [✕] at top right
             SelectObject(mem_dc, self.hfont_title);

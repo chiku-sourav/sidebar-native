@@ -24,7 +24,11 @@ impl CardRenderer for VirtualMemoryCard {
 
     fn calculate_height(&self, _snapshot: &TelemetrySnapshot, config: &AppConfig) -> i32 {
         let scale = config.font_size.scale();
-        (138.0 * scale).round() as i32
+        let mut base_h = 138.0;
+        if config.adv_virtual_memory {
+            base_h += 64.0; // 3 extra advanced rows
+        }
+        (base_h * scale).round() as i32
     }
 
     fn render(
@@ -86,21 +90,67 @@ impl CardRenderer for VirtualMemoryCard {
                 ctx.pal.text_primary,
             );
 
-            inside_y += ctx.lh(24);
-            SelectObject(hdc, ctx.hfont_caption);
-            SetTextColor(hdc, ctx.pal.text_muted);
-            ctx.draw_text(
-                hdc,
-                x + 14,
-                inside_y,
-                "Committed is what Windows has promised programs",
-            );
-            ctx.draw_text(
-                hdc,
-                x + 14,
-                inside_y + ctx.lh(16),
-                "— excess memory is automatically paged to storage.",
-            );
+            // Advanced Virtual Memory Details
+            if config.adv_virtual_memory {
+                inside_y += ctx.lh(20);
+                let p_gb = snapshot.ram.paged_pool_bytes as f32 / (1024.0 * 1024.0 * 1024.0);
+                let np_mb = snapshot.ram.nonpaged_pool_bytes as f32 / (1024.0 * 1024.0);
+                let pools_str = format!("Paged: {:.1} GB • Non-Paged: {:.0} MB", p_gb, np_mb);
+                ctx.draw_key_value(
+                    hdc,
+                    x + 14,
+                    inside_y,
+                    w - 28,
+                    "Kernel Pools",
+                    &pools_str,
+                    ctx.pal.text_muted,
+                    ctx.pal.accent_cyan,
+                );
+
+                inside_y += ctx.lh(20);
+                let stb_gb = snapshot.ram.standby_bytes as f32 / (1024.0 * 1024.0 * 1024.0);
+                let mod_mb = snapshot.ram.modified_bytes as f32 / (1024.0 * 1024.0);
+                let pages_str = format!("Standby: {:.1} GB • Modified: {:.0} MB", stb_gb, mod_mb);
+                ctx.draw_key_value(
+                    hdc,
+                    x + 14,
+                    inside_y,
+                    w - 28,
+                    "Page Lists",
+                    &pages_str,
+                    ctx.pal.text_muted,
+                    ctx.pal.accent_amber,
+                );
+
+                inside_y += ctx.lh(20);
+                let cache_gb = snapshot.ram.system_cache_bytes as f32 / (1024.0 * 1024.0 * 1024.0);
+                ctx.draw_key_value(
+                    hdc,
+                    x + 14,
+                    inside_y,
+                    w - 28,
+                    "System Cache",
+                    &format!("{:.1} GB", cache_gb),
+                    ctx.pal.text_muted,
+                    ctx.pal.text_muted,
+                );
+            } else {
+                inside_y += ctx.lh(24);
+                SelectObject(hdc, ctx.hfont_caption);
+                SetTextColor(hdc, ctx.pal.text_muted);
+                ctx.draw_text(
+                    hdc,
+                    x + 14,
+                    inside_y,
+                    "Committed is what Windows has promised programs",
+                );
+                ctx.draw_text(
+                    hdc,
+                    x + 14,
+                    inside_y + ctx.lh(16),
+                    "— excess memory is automatically paged to storage.",
+                );
+            }
         }
     }
 }

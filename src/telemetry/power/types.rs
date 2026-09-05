@@ -17,6 +17,13 @@ pub struct SingleBatteryInfo {
     pub is_charging: bool,
     pub is_discharging: bool,
     pub is_critical: bool,
+
+    // Advanced Metrics (gated by config.adv_battery)
+    pub charge_rate_mw: Option<i32>,
+    pub capacity_granularity_1_mwh: u32,
+    pub capacity_granularity_2_mwh: u32,
+    pub low_capacity_alert_mwh: u32,
+    pub warning_capacity_alert_mwh: u32,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -49,6 +56,14 @@ pub struct BatteryMetrics {
     pub serial_number: String,
     pub manufacture_date: Option<String>,
     pub power_state_description: String,
+
+    // Advanced Metrics (gated by config.adv_battery)
+    pub charge_rate_mw: Option<i32>,
+    pub capacity_granularity_1_mwh: u32,
+    pub capacity_granularity_2_mwh: u32,
+    pub low_capacity_alert_mwh: u32,
+    pub warning_capacity_alert_mwh: u32,
+    pub power_plan_name: String,
 
     // Multi-battery list
     pub batteries: Vec<SingleBatteryInfo>,

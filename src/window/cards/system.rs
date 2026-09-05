@@ -24,7 +24,11 @@ impl CardRenderer for SystemCard {
 
     fn calculate_height(&self, _snapshot: &TelemetrySnapshot, config: &AppConfig) -> i32 {
         let scale = config.font_size.scale();
-        (100.0 * scale).round() as i32
+        let mut base_h = 100.0;
+        if config.adv_bios {
+            base_h += 64.0; // 3 extra advanced rows
+        }
+        (base_h * scale).round() as i32
     }
 
     fn render(
@@ -72,6 +76,55 @@ impl CardRenderer for SystemCard {
                 ctx.pal.text_muted,
                 ctx.pal.text_primary,
             );
+
+            // Advanced BIOS & Motherboard Details
+            if config.adv_bios {
+                if let Some(bios) = &snapshot.bios {
+                    inside_y += ctx.lh(20);
+                    let bios_ver_str =
+                        format!("{} v{} ({})", bios.vendor, bios.version, bios.release_date);
+                    ctx.draw_key_value(
+                        hdc,
+                        x + 14,
+                        inside_y,
+                        w - 28,
+                        "Firmware (BIOS)",
+                        &bios_ver_str,
+                        ctx.pal.text_muted,
+                        ctx.pal.accent_cyan,
+                    );
+
+                    inside_y += ctx.lh(20);
+                    let sec_str = format!(
+                        "UEFI • Secure Boot: {} • TPM: {}",
+                        bios.secure_boot, bios.tpm_version
+                    );
+                    ctx.draw_key_value(
+                        hdc,
+                        x + 14,
+                        inside_y,
+                        w - 28,
+                        "Platform Security",
+                        &sec_str,
+                        ctx.pal.text_muted,
+                        ctx.pal.text_primary,
+                    );
+
+                    inside_y += ctx.lh(20);
+                    let board_str =
+                        format!("{} {}", bios.motherboard_mfg, bios.motherboard_product);
+                    ctx.draw_key_value(
+                        hdc,
+                        x + 14,
+                        inside_y,
+                        w - 28,
+                        "Motherboard",
+                        &board_str,
+                        ctx.pal.text_muted,
+                        ctx.pal.text_muted,
+                    );
+                }
+            }
         }
     }
 }

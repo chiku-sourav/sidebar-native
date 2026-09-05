@@ -67,11 +67,14 @@ impl CardRenderer for BatteryCard {
         let has_cycles = snapshot.battery.cycle_count.is_some();
         let has_health = snapshot.battery.health_percent.is_some();
 
-        let base_h = if has_health || has_cycles || has_temp {
+        let mut base_h = if has_health || has_cycles || has_temp {
             208.0
         } else {
             176.0
         };
+        if config.adv_battery {
+            base_h += 60.0; // 3 extra advanced rows
+        }
 
         ((base_h + extra_name_h + extra_bat_h) * scale).round() as i32
     }
@@ -373,6 +376,79 @@ impl CardRenderer for BatteryCard {
                     &format!("Design ({:.1}Wh)", design_wh),
                     ctx.pal.text_muted,
                 );
+            }
+
+            // Advanced Battery Details
+            if config.adv_battery {
+                inside_y += ctx.lh(22);
+                let alerts_str = format!(
+                    "{} • Alert: {} mWh",
+                    snapshot.battery.power_plan_name, snapshot.battery.low_capacity_alert_mwh
+                );
+                ctx.draw_key_value(
+                    hdc,
+                    x + 14,
+                    inside_y,
+                    w - 28,
+                    "Power Plan & Alerts",
+                    &alerts_str,
+                    ctx.pal.text_muted,
+                    ctx.pal.text_primary,
+                );
+
+                inside_y += ctx.lh(20);
+                let raw_mw_str = snapshot
+                    .battery
+                    .charge_rate_mw
+                    .map(|r| format!("{} mW", r))
+                    .unwrap_or_else(|| "0 mW".to_string());
+                let gran_str = format!(
+                    "Gran: {}/{} mWh • {}",
+                    snapshot.battery.capacity_granularity_1_mwh,
+                    snapshot.battery.capacity_granularity_2_mwh,
+                    raw_mw_str
+                );
+                ctx.draw_key_value(
+                    hdc,
+                    x + 14,
+                    inside_y,
+                    w - 28,
+                    "Granularity & Flow",
+                    &gran_str,
+                    ctx.pal.text_muted,
+                    ctx.pal.accent_cyan,
+                );
+
+                let has_sn = !snapshot.battery.serial_number.is_empty();
+                let has_mfg = snapshot.battery.manufacture_date.is_some();
+                if has_sn || has_mfg {
+                    inside_y += ctx.lh(20);
+                    let sn_part = if has_sn {
+                        format!("SN: {}", snapshot.battery.serial_number)
+                    } else {
+                        String::new()
+                    };
+                    let mfg_part = if let Some(mfg) = &snapshot.battery.manufacture_date {
+                        format!("Mfg: {}", mfg)
+                    } else {
+                        String::new()
+                    };
+                    let sn_mfg_str = if has_sn && has_mfg {
+                        format!("{} • {}", sn_part, mfg_part)
+                    } else {
+                        format!("{}{}", sn_part, mfg_part)
+                    };
+                    ctx.draw_key_value(
+                        hdc,
+                        x + 14,
+                        inside_y,
+                        w - 28,
+                        "Hardware Identity",
+                        &sn_mfg_str,
+                        ctx.pal.text_muted,
+                        ctx.pal.text_muted,
+                    );
+                }
             }
 
             // 10. Multi-Battery Breakdown (if laptop has multiple packs)

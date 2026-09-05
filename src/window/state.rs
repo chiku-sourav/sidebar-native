@@ -23,6 +23,7 @@ pub struct AppState {
     pub dpi: AtomicU32,
     pub win_width: AtomicI32,
     pub win_height: AtomicI32,
+    pub caffeine_start_time: Mutex<Option<std::time::Instant>>,
 }
 
 pub fn get_app_state() -> Option<&'static AppState> {
